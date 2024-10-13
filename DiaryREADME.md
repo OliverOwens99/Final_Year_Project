@@ -9,13 +9,16 @@ and to provide a view for tracking learning those softer skills github issue wil
 - focus on core of the project the dropdown menu and the ai learning stuff 
 - maybe do some research on how to fine tune models 
 - look up a pre-trained model on hugging face for reference 
+- some coding example test to illustrate the proof opf concept
 
 
 ## COMPLETED
+- Better understanding of the make up of AIs and the fact you can uses schemas and builders to guide LLMs to  structure your data accordingly using few-shot prompting or embedding model-based classification 
 
 
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
 - https://huggingface.co/
+- https://glaforge.dev/posts/2024/07/11/text-classification-with-gemini-and-langchain4j/
 
