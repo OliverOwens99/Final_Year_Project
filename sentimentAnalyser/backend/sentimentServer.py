@@ -6,9 +6,10 @@ app = Flask(__name__)
 
 def run_java_analyzer(analyzer_type, text):
     java_programs = {
-        'analyzer1': ['java', '-cp', '.:json.jar', 'SimpleAnalyzer'],
-        'analyzer2': ['java', '-cp', '.:json.jar', 'AdvancedAnalyzer'],
-        'analyzer3': ['java', '-cp', '.:json.jar', 'MLAnalyzer']
+        ## names of programmes will change this is placeholder
+        'llm': ['java', '-cp', '.:json.jar', 'LLMAnalyzer'],
+        'transformer': ['java', '-cp', '.:json.jar', 'TransformerAnalyzer'],
+        'lexicon': ['java', '-cp', '.:json.jar', 'LexiconAnalyzer']
     }
     
     try:
