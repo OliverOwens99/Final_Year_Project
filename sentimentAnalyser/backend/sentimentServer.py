@@ -1,53 +1,53 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
-import requests
-from bs4 import BeautifulSoup
-import re
+import subprocess
+import json
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
 
-def extract_text_from_url(url):
-    try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Remove script and style elements
-        for script in soup(["script", "style"]):
-            script.decompose()
-            
-        # Get text and clean it
-        text = soup.get_text()
-        # Replace multiple newlines with single newline
-        text = re.sub(r'\n+', '\n', text.strip())
-        return text
-    except Exception as e:
-        return str(e)
-
-def analyze_political_bias(text):
-    # Placeholder for your bias analysis logic
-    # You'll need to implement your own algorithm or use an existing model
-    # This is just a dummy implementation
-    return {
-        "left": 60,
-        "right": 40
+def run_java_analyzer(analyzer_type, text):
+    java_programs = {
+        'analyzer1': ['java', '-cp', '.:json.jar', 'SimpleAnalyzer'],
+        'analyzer2': ['java', '-cp', '.:json.jar', 'AdvancedAnalyzer'],
+        'analyzer3': ['java', '-cp', '.:json.jar', 'MLAnalyzer']
     }
+    
+    try:
+        # Run the Java program and pipe the text to it
+        process = subprocess.Popen(
+            java_programs[analyzer_type],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        # Send text to Java program and get results
+        stdout, stderr = process.communicate(input=text)
+        
+        if process.returncode != 0:
+            raise Exception(f"Java program error: {stderr}")
+            
+        # Parse the JSON output from Java
+        return json.loads(stdout)
+        
+    except Exception as e:
+        raise Exception(f"Error running analyzer: {str(e)}")
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.get_json()
-    url = data.get('url')
     
-    if not url:
-        return jsonify({"error": "No URL provided"}), 400
-    
-    # Extract text from URL
-    article_text = extract_text_from_url(url)
-    
-    # Analyze the text
-    results = analyze_political_bias(article_text)
-    
-    return jsonify(results)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    if not data or 'url' not in data or 'analyzer_type' not in data:
+        return jsonify({'error': 'Missing url or analyzer type'}), 400
+        
+    try:
+        # Your existing text extraction code here
+        text = extract_text_from_url(data['url'])
+        
+        # Run the selected Java analyzer
+        results = run_java_analyzer(data['analyzer_type'], text)
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
