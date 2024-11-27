@@ -52,3 +52,10 @@ def analyze():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+def extract_text_from_url(url):
+    # Placeholder for text extraction
+    return 'This is the extracted text from the URL'
+
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -18,7 +18,8 @@ and to provide a view for tracking learning those softer skills github issue wil
 - Better understanding of the make up of AIs and the fact you can uses schemas and builders to guide LLMs to  structure your data accordingly using few-shot prompting or embedding model-based classification 
 - Added The backend and set up and started the process of setting up python in the ven works perfectly so starting that application does work 
 - Research and implement flask server with cors hooks
-
+- Added frontend
+- Added some test data for the flask server
 
 ## REFERENCES
 - https://docs.langchain4j.dev/

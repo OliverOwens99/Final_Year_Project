@@ -5,8 +5,12 @@ function SentimentAnalyzer() {
   const [url, setUrl] = useState('');
   const [analyzer, setAnalyzer] = useState('llm');  // default to llm
   const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch('http://localhost:5000/analyze', {
         method: 'POST',
@@ -22,13 +26,17 @@ function SentimentAnalyzer() {
       const data = await response.json();
       setResults(data);
     } catch (error) {
+      setError('Error analyzing the article. Please try again.');
       console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Article Analyzer</h1>
+      <h1>Sentiment Analyzer</h1>
+      <p>Enter the link to the article you want to analyze and select the analysis module from the dropdown menu.</p>
       
       <div style={{ marginBottom: '20px' }}>
         <input
@@ -60,9 +68,11 @@ function SentimentAnalyzer() {
             borderRadius: '4px' 
           }}
         >
-          Analyze
+          {loading ? 'Analyzing...' : 'Analyze'}
         </button>
       </div>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       {results && (
         <div style={{ marginTop: '20px' }}>
@@ -90,4 +100,4 @@ function SentimentAnalyzer() {
   );
 }
 
-export default SentimentAnalyzer
+export default SentimentAnalyzer;
