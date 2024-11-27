@@ -3,14 +3,16 @@ import { PieChart, Pie, Cell, Legend } from 'recharts';
 
 function SentimentAnalyzer() {
   const [url, setUrl] = useState('');
-  const [analyzer, setAnalyzer] = useState('llm');  // default to llm
+  const [analyzer, setAnalyzer] = useState('llm');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [consoleMessage, setConsoleMessage] = useState('');
 
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
+    setConsoleMessage('');
     try {
       const response = await fetch('http://localhost:5000/analyze', {
         method: 'POST',
@@ -24,7 +26,9 @@ function SentimentAnalyzer() {
       });
       
       const data = await response.json();
-      setResults(data);
+      console.log('Response data:', data);
+      setResults(data.results);
+      setConsoleMessage(data.console_message);
     } catch (error) {
       setError('Error analyzing the article. Please try again.');
       console.error('Error:', error);
@@ -73,6 +77,7 @@ function SentimentAnalyzer() {
       </div>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      {consoleMessage && <p>{consoleMessage}</p>}
 
       {results && (
         <div style={{ marginTop: '20px' }}>
