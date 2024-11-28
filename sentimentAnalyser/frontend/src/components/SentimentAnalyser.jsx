@@ -39,7 +39,7 @@ function SentimentAnalyzer() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Sentiment Analyzer</h1>
+      <h1>Sentiment Analyser</h1>
       <p>Enter the link to the article you want to analyze and select the analysis module from the dropdown menu.</p>
       
       <div style={{ marginBottom: '20px' }}>

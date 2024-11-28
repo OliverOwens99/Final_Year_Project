@@ -20,10 +20,13 @@ and to provide a view for tracking learning those softer skills github issue wil
 - Research and implement flask server with cors hooks
 - Added frontend
 - Added some test data for the flask server
+- End to end working checked using console messages
 
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
 - https://huggingface.co/
 - https://glaforge.dev/posts/2024/07/11/text-classification-with-gemini-and-langchain4j/
+- https://vite.dev/guide/
+- https://react.dev/
 
