@@ -12,6 +12,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - some coding example test to illustrate the proof opf concept
 - finish of react front end and take some placeholder 
 - add the ai java programmes maybe some more research into how i might use them and api keys 
+- test and troubleshoot user login 
 
 
 ## COMPLETED
@@ -21,6 +22,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - Added frontend
 - Added some test data for the flask server
 - End to end working checked using console messages
+- added login
 
 ## REFERENCES
 - https://docs.langchain4j.dev/
