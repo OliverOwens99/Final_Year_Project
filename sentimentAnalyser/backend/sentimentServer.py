@@ -2,21 +2,37 @@ from flask import Flask, request, jsonify, redirect, url_for, session
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from pymongo import MongoClient
+from flask_cors import CORS
 import subprocess
 import json
 import logging
 import requests
 from bs4 import BeautifulSoup
 
+
+logging.basicConfig(level=logging.INFO)
+
+logging.getLogger('pymongo').setLevel(logging.WARNING)
+
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
+CORS(app)
 
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 # MongoDB setup
-client = MongoClient('mongodb://localhost:27017/')
+uri = "mongodb+srv://admin:admin@cluster0.8c7ngnf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+client = MongoClient(uri)
+
+# Send a ping to confirm a successful connection
+# try:
+#     client.admin.command('ping')
+#     print("Pinged your deployment. You successfully connected to MongoDB!")
+# except Exception as e:
+#     print(e)
+
 db = client.sentiment_analyzer
 users_collection = db.users
 links_collection = db.links

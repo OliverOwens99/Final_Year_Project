@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { redirect } from 'react-router-dom';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -20,6 +21,7 @@ function Login() {
       if (response.ok) {
         console.log('Login successful:', data);
         // Redirect to the main page or set user state
+        navigate('/analyze');
       } else {
         setError(data.error);
       }

@@ -21,6 +21,7 @@ function Register() {
       if (response.ok) {
         console.log('Registration successful:', data);
         // Redirect to the login page or set user state
+        navigate('/analyze');
       } else {
         setError(data.error);
       }
