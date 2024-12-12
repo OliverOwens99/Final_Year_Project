@@ -76,12 +76,30 @@ def logout():
     return jsonify({'message': 'Logged out successfully'}), 200
 
 def run_java_analyzer(analyzer_type, text):
-    # Placeholder response since Java modules are not developed yet
-    return {
-        'left': 50,
-        'right': 50,
-        'message': f'Placeholder analysis for {analyzer_type}'
+    java_programs = {
+        'llm': ['java', '-cp', '.:json.jar', 'LLMAnalyzer'],
+        'transformer': ['java', '-cp', '.:json.jar', 'TransformerAnalyzer'],
+        'lexicon': ['java', '-cp', '.:json.jar', 'LexiconAnalyzer']
     }
+    
+    try:
+        process = subprocess.Popen(
+            java_programs[analyzer_type],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        stdout, stderr = process.communicate(input=text)
+        
+        if process.returncode != 0:
+            raise Exception(f"Java program error: {stderr}")
+            
+        return json.loads(stdout)
+        
+    except Exception as e:
+        raise Exception(f"Error running analyzer: {str(e)}")
 
 @app.route('/analyze', methods=['POST'])
 @login_required
