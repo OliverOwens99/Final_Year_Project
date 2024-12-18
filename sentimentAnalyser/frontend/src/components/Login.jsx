@@ -51,6 +51,7 @@ function Login() {
         <button type="submit">Login</button>
       </form>
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      <button onClick={() => navigate('/register')}>Register</button>
     </div>
   );
 }
