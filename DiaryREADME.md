@@ -31,4 +31,4 @@ and to provide a view for tracking learning those softer skills github issue wil
 - https://glaforge.dev/posts/2024/07/11/text-classification-with-gemini-and-langchain4j/
 - https://vite.dev/guide/
 - https://react.dev/
-
+- https://github.com/cjhutto/vaderSentiment/blob/master/vaderSentiment/vader_lexicon.txt for the vader text file
