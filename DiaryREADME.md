@@ -23,6 +23,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - Added some test data for the flask server
 - End to end working checked using console messages
 - added login
+- added lexicon loader achieved a better understanding of how they work also
 
 ## REFERENCES
 - https://docs.langchain4j.dev/
