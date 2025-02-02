@@ -1,0 +1,16 @@
+liberal	-2
+conservative	2
+progressive	-2
+traditional	2
+socialism	-2
+capitalism	2
+democrat	-2
+republican	2
+left-wing	-2
+right-wing	2
+welfare	-1.5
+deregulation	1.5
+communist	-2
+nationalist	2
+socialist	-2
+libertarian	2
