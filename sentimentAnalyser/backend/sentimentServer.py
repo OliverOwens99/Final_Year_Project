@@ -116,6 +116,30 @@ def run_java_analyzer(analyzer_type, text):
         
     except Exception as e:
         raise Exception(f"Error running analyzer: {str(e)}")
+# house keeping to ensure the java programme works as expected
+def run_java_analyzer_lexicon(analyzer_type, text):
+    java_programs = {
+        'lexicon': ['java', '-cp', './java-analysers', 'LexiconAnalyzer']
+    }
+    
+    try:
+        process = subprocess.Popen(
+            java_programs[analyzer_type],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        stdout, stderr = process.communicate(input=text)
+        
+        if process.returncode != 0:
+            raise Exception(f"Java program error: {stderr}")
+            
+        return json.loads(stdout)
+        
+    except Exception as e:
+        raise Exception(f"Error running analyzer: {str(e)}")
 
 @app.route('/analyze', methods=['POST'])
 @login_required
