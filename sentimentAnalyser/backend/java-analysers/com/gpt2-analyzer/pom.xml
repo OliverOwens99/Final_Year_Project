@@ -9,11 +9,22 @@
         <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
-    <dependencies>
+        <dependencies>
+            <dependency>
+                <groupId>com.microsoft.onnxruntime</groupId>
+                <artifactId>onnxruntime</artifactId>
+                <version>1.15.1</version>
+            </dependency>
+
         <dependency>
-            <groupId>com.microsoft.onnxruntime</groupId>
-            <artifactId>onnxruntime</artifactId>
-            <version>1.15.1</version>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>0.27.1</version>
         </dependency>
-    </dependencies>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-huggingface</artifactId>
+            <version>0.27.1</version>
+        </dependency>
+        </dependencies>
 </project>
