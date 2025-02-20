@@ -1,8 +1,11 @@
 package com.sentiment;
 
+
 import ai.onnxruntime.*;
 import java.nio.file.*;
 import java.util.*;
+
+import AnalyzerResult;
 
 public class GPT2Analyzer {
     private static OrtEnvironment env;

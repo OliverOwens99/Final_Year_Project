@@ -1,4 +1,6 @@
+package com.sentiment;
 
+import AnalyzerResult;
 import dev.langchain4j.model.huggingface.HuggingFaceModel;
 import dev.langchain4j.model.output.Response;
 
