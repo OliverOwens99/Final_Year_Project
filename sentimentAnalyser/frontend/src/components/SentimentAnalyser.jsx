@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, Legend } from 'recharts';
 function SentimentAnalyzer() {
   const [url, setUrl] = useState('');
   const [analyzer, setAnalyzer] = useState('llm');
+  const [model, setModel] = useState('gpt-3.5-turbo'); // Add this state
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -21,7 +22,8 @@ function SentimentAnalyzer() {
         },
         body: JSON.stringify({
           url: url,
-          analyzer_type: analyzer
+          analyzer_type: analyzer,
+          model: model // Add this to send the model selection
         })
       });
       
@@ -60,6 +62,18 @@ function SentimentAnalyzer() {
           <option value="transformer">Transformer Analysis</option>
           <option value="lexicon">Lexicon Analysis</option>
         </select>
+
+        {/* Add model selector dropdown that only shows when transformer is selected */}
+        {analyzer === 'transformer' && (
+          <select 
+            value={model} 
+            onChange={(e) => setModel(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
+          >
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+          </select>
+        )}
 
         <button 
           onClick={handleSubmit}

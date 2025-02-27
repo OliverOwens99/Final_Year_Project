@@ -144,44 +144,67 @@ def run_java_analyzer_lexicon(analyzer_type, text):
 @app.route('/analyze', methods=['POST'])
 @login_required
 def analyze():
-    data = request.get_json()
-    logging.debug(f"Received data: {data}")
+    data = request.json
+    url = data.get('url')
+    analyzer_type = data.get('analyzer_type', 'lexicon')
+    model = data.get('model', 'gpt-3.5-turbo')  # Get the model parameter
     
-    if not data or 'url' not in data or 'analyzer_type' not in data:
-        return jsonify({'error': 'Missing url or analyzer type'}), 400
-        
+    # Extract article text
     try:
-        text = extract_text_from_url(data['url'])
-        logging.debug(f"Extracted text: {text}")
+        article_text = extract_text_from_url(url)
+    except Exception as e:
+        return jsonify({'error': f"Error extracting text: {str(e)}"})
+    
+    # Analyze the text
+    try:
+        result = None
+        console_message = ""
         
-        results = run_java_analyzer(data['analyzer_type'], text)
-        logging.debug(f"Analysis results: {results}")
-        
-        # Store the link and results in MongoDB
-        links_collection.insert_one({
-            "user_id": current_user.id,
-            "url": data['url'],
-            "analyzer_type": data['analyzer_type'],
-            "results": results
+        if analyzer_type == 'transformer':
+            # Pass model parameter to transformer analyzer
+            result = run_java_analyzer(analyzer_type, article_text, model)
+        else:
+            # Use existing analyzers without model parameter
+            result = run_java_analyzer(analyzer_type, article_text)
+            
+        return jsonify({
+            'results': result,
+            'console_message': console_message
         })
+    except Exception as e:
+        return jsonify({'error': f"Analysis error: {str(e)}"})
+
+def run_java_analyzer(analyzer_type, text, model=None):
+    java_programs = {
+        'llm': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.GPT2Analyzer'],
+        'transformer': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.TransformerAnalyzer'],
+        'lexicon': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.LexiconAnalyzer']
+    }
+    
+    cmd = java_programs[analyzer_type]
+    
+    # Add model parameter for transformer analyzer
+    if analyzer_type == 'transformer' and model:
+        cmd.extend(['--model', model])
+    
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
         
-        console_message = "Analysis completed successfully with placeholder data."
-        return jsonify({'results': results, 'console_message': console_message})
+        stdout, stderr = process.communicate(input=text)
+        
+        if process.returncode != 0:
+            raise Exception(f"Java program error: {stderr}")
+            
+        return json.loads(stdout)
         
     except Exception as e:
-        logging.error(f"Error: {str(e)}")
-        return jsonify({'error': str(e), 'console_message': 'An error occurred during analysis.'}), 500
-    
-def extract_text_from_url(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        soup = BeautifulSoup(response.content, 'html.parser')
-        text = soup.get_text(separator=' ', strip=True)
-        return text
-    except requests.RequestException as e:
-        logging.error(f"Error fetching URL: {str(e)}")
-        return 'Error fetching the URL content'
+        raise Exception(f"Error running analyzer: {str(e)}")
 
 if __name__ == '__main__':
     app.run(debug=True)
