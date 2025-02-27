@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 
 
 logging.basicConfig(level=logging.INFO)
-
 logging.getLogger('pymongo').setLevel(logging.WARNING)
 
 app = Flask(__name__)
@@ -36,8 +35,6 @@ client = MongoClient(uri)
 db = client.sentiment_analyzer
 users_collection = db.users
 links_collection = db.links
-
-logging.basicConfig(level=logging.DEBUG)
 
 class User(UserMixin):
     def __init__(self, user_id):
@@ -91,55 +88,33 @@ def logout():
     logout_user()
     return jsonify({'message': 'Logged out successfully'}), 200
 
-def run_java_analyzer(analyzer_type, text):
-    java_programs = {
-        'llm': ['java', '-cp', '.:json.jar', 'LLMAnalyzer'],
-        'transformer': ['java', '-cp', '.:json.jar', 'TransformerAnalyzer'],
-        'lexicon': ['java', '-cp', '.:json.jar', 'LexiconAnalyzer']
-    }
-    
+def extract_text_from_url(url):
+    """Extract article text from a URL using BeautifulSoup"""
     try:
-        process = subprocess.Popen(
-            java_programs[analyzer_type],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        response = requests.get(url)
+        response.raise_for_status()
         
-        stdout, stderr = process.communicate(input=text)
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        if process.returncode != 0:
-            raise Exception(f"Java program error: {stderr}")
-            
-        return json.loads(stdout)
+        # Remove scripts, styles, and other non-content elements
+        for element in soup(['script', 'style', 'header', 'footer', 'nav']):
+            element.extract()
         
+        # Get paragraphs - this is a simplified approach
+        paragraphs = soup.find_all('p')
+        text = ' '.join([para.get_text().strip() for para in paragraphs])
+        
+        # Clean up spacing
+        text = ' '.join(text.split())
+        
+        if not text:
+            # If no paragraphs found, get all text
+            text = soup.get_text(separator=' ', strip=True)
+        
+        return text
     except Exception as e:
-        raise Exception(f"Error running analyzer: {str(e)}")
-# house keeping to ensure the java programme works as expected
-def run_java_analyzer_lexicon(analyzer_type, text):
-    java_programs = {
-        'lexicon': ['java', '-cp', './java-analysers', 'LexiconAnalyzer']
-    }
-    
-    try:
-        process = subprocess.Popen(
-            java_programs[analyzer_type],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        stdout, stderr = process.communicate(input=text)
-        
-        if process.returncode != 0:
-            raise Exception(f"Java program error: {stderr}")
-            
-        return json.loads(stdout)
-        
-    except Exception as e:
-        raise Exception(f"Error running analyzer: {str(e)}")
+        logging.error(f"Error extracting text from {url}: {str(e)}")
+        raise Exception(f"Failed to extract text from URL: {str(e)}")
 
 @app.route('/analyze', methods=['POST'])
 @login_required
@@ -147,7 +122,7 @@ def analyze():
     data = request.json
     url = data.get('url')
     analyzer_type = data.get('analyzer_type', 'lexicon')
-    model = data.get('model', 'gpt-3.5-turbo')  # Get the model parameter
+    model = data.get('model', 'gpt-3.5-turbo')
     
     # Extract article text
     try:
@@ -167,6 +142,15 @@ def analyze():
             # Use existing analyzers without model parameter
             result = run_java_analyzer(analyzer_type, article_text)
             
+        # Save analyzed link to database
+        links_collection.insert_one({
+            "url": url,
+            "analyzer": analyzer_type,
+            "result": result,
+            "user": current_user.id,
+            "timestamp": datetime.now()
+        })
+            
         return jsonify({
             'results': result,
             'console_message': console_message
@@ -175,13 +159,17 @@ def analyze():
         return jsonify({'error': f"Analysis error: {str(e)}"})
 
 def run_java_analyzer(analyzer_type, text, model=None):
+    """Run Java analyzer with the compiled JAR file"""
     java_programs = {
         'llm': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.GPT2Analyzer'],
         'transformer': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.TransformerAnalyzer'],
         'lexicon': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.LexiconAnalyzer']
     }
     
-    cmd = java_programs[analyzer_type]
+    if analyzer_type not in java_programs:
+        raise ValueError(f"Unknown analyzer type: {analyzer_type}")
+    
+    cmd = java_programs[analyzer_type].copy()  # Use copy to avoid modifying the original
     
     # Add model parameter for transformer analyzer
     if analyzer_type == 'transformer' and model:
@@ -198,14 +186,29 @@ def run_java_analyzer(analyzer_type, text, model=None):
         
         stdout, stderr = process.communicate(input=text)
         
+        if stderr:
+            logging.warning(f"Java analyzer stderr: {stderr}")
+        
         if process.returncode != 0:
             raise Exception(f"Java program error: {stderr}")
             
         return json.loads(stdout)
         
+    except json.JSONDecodeError:
+        raise Exception(f"Invalid JSON output from analyzer: {stdout}")
     except Exception as e:
         raise Exception(f"Error running analyzer: {str(e)}")
 
+@app.route('/history')
+@login_required
+def history():
+    """Get user's analysis history"""
+    user_links = list(links_collection.find({"user": current_user.id}))
+    for link in user_links:
+        link['_id'] = str(link['_id'])  # Convert ObjectId to string for JSON serialization
+    return jsonify(user_links)
+
 if __name__ == '__main__':
+    from datetime import datetime  # Add this import at the top of the file
     app.run(debug=True)
     print('Server running on http://127.0.0.1:5000/')
