@@ -1,11 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
+package com.sentiment;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -22,62 +15,69 @@ public class LexiconAnalyzer {
     
     static {
         try {
-            // Adjust paths to look in com/resources instead of com/sentiment/resources
-            Path vaderPath = Paths.get("com", "resources", "vader_lexicon.txt");
-            Path politicalPath = Paths.get("com", "resources", "politicalBias.txt");
+            // Load resources from classpath
+            InputStream vaderStream = LexiconAnalyzer.class.getResourceAsStream("/vader_lexicon.txt");
+            if (vaderStream == null) {
+                throw new IOException("VADER lexicon not found in resources");
+            }
+            
+            InputStream politicalStream = LexiconAnalyzer.class.getResourceAsStream("/politicalBias.txt");
+            if (politicalStream == null) {
+                throw new IOException("Political lexicon not found in resources");
+            }
             
             // Debug path information
             System.out.println("Working Directory = " + Paths.get("").toAbsolutePath());
-            System.out.println("VADER Path = " + vaderPath.toAbsolutePath());
-            System.out.println("Political Path = " + politicalPath.toAbsolutePath());
             
-            if (!Files.exists(vaderPath)) {
-                throw new IOException("VADER lexicon not found at: " + vaderPath.toAbsolutePath());
-            }
-            if (!Files.exists(politicalPath)) {
-                throw new IOException("Political lexicon not found at: " + politicalPath.toAbsolutePath());
-            }
+            loadVaderLexicon(vaderStream);
+            loadPoliticalLexicon(politicalStream);
             
-            loadVaderLexicon(vaderPath);
-            loadPoliticalLexicon(politicalPath);
         } catch (IOException e) {
             System.err.println("Error loading lexicons: " + e.getMessage());
             initializeFallbackLexicons();
         }
     }
 
-    private static void loadVaderLexicon(Path path) throws IOException {
-        Files.lines(path)
-            .filter(line -> !line.trim().isEmpty() && !line.startsWith(";"))
-            .map(line -> line.split("\t"))
-            .filter(parts -> parts.length >= 2)
-            .forEach(parts -> {
-                try {
-                    VADER_LEXICON.put(
-                        parts[0].trim().toLowerCase(),
-                        Double.parseDouble(parts[1].trim())
-                    );
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid VADER score for: " + parts[0]);
+    private static void loadVaderLexicon(InputStream stream) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty() || line.startsWith(";")) continue;
+                
+                String[] parts = line.split("\t");
+                if (parts.length >= 2) {
+                    try {
+                        VADER_LEXICON.put(
+                            parts[0].trim().toLowerCase(),
+                            Double.parseDouble(parts[1].trim())
+                        );
+                    } catch (NumberFormatException e) {
+                        System.err.println("Invalid VADER score for: " + parts[0]);
+                    }
                 }
-            });
+            }
+        }
     }
 
-    private static void loadPoliticalLexicon(Path path) throws IOException {
-        Files.lines(path)
-            .filter(line -> !line.trim().isEmpty())
-            .map(line -> line.split("\t"))
-            .filter(parts -> parts.length >= 2)
-            .forEach(parts -> {
-                try {
-                    POLITICAL_LEXICON.put(
-                        parts[0].trim().toLowerCase(),
-                        Double.parseDouble(parts[1].trim())
-                    );
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid political score for: " + parts[0]);
+    private static void loadPoliticalLexicon(InputStream stream) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                
+                String[] parts = line.split("\t");
+                if (parts.length >= 2) {
+                    try {
+                        POLITICAL_LEXICON.put(
+                            parts[0].trim().toLowerCase(),
+                            Double.parseDouble(parts[1].trim())
+                        );
+                    } catch (NumberFormatException e) {
+                        System.err.println("Invalid political score for: " + parts[0]);
+                    }
                 }
-            });
+            }
+        }
     }
 
     private static void initializeFallbackLexicons() {

@@ -1,11 +1,10 @@
 package com.sentiment;
 
-
 import ai.onnxruntime.*;
 import java.nio.file.*;
 import java.util.*;
-
-import AnalyzerResult;
+import java.nio.LongBuffer;
+import java.io.IOException;
 
 public class GPT2Analyzer {
     private static OrtEnvironment env;
@@ -15,12 +14,18 @@ public class GPT2Analyzer {
     static {
         try {
             env = OrtEnvironment.getEnvironment();
+            
             // Load model from resources
             String modelPath = GPT2Analyzer.class
                 .getResource("/models/gpt2-political.onnx")
                 .getPath();
+                
+            if (modelPath == null) {
+                throw new IOException("Model file not found in resources");
+            }
+            
             session = env.createSession(modelPath);
-        } catch (OrtException e) {
+        } catch (OrtException | IOException e) {
             System.err.println("Error initializing GPT-2: " + e.getMessage());
         }
     }
@@ -32,9 +37,10 @@ public class GPT2Analyzer {
             
             // Create input tensor
             long[] inputIds = tokenizeText(text);
+            LongBuffer longBuffer = LongBuffer.wrap(inputIds);
             OnnxTensor inputTensor = OnnxTensor.createTensor(
-                env, 
-                new long[][]{inputIds}, 
+                env,
+                longBuffer,
                 new long[]{1, inputIds.length}
             );
             
@@ -43,8 +49,17 @@ public class GPT2Analyzer {
             inputs.put("input_ids", inputTensor);
             OrtSession.Result output = session.run(inputs);
             
-            // Process results
-            float[] logits = output.get(0).getFloatBuffer().array();
+            // Process results - properly cast to OnnxTensor
+            OnnxValue onnxValue = output.get(0);
+            float[] logits;
+            
+            if (onnxValue instanceof OnnxTensor) {
+                logits = ((OnnxTensor) onnxValue).getFloatBuffer().array();
+            } else {
+                // Handle unexpected type
+                throw new OrtException("Expected OnnxTensor but got " + onnxValue.getClass().getName());
+            }
+            
             double bias = calculatePoliticalBias(logits);
             
             double leftScore = Math.max(0, Math.min(100, 50 - (bias * 25)));
@@ -82,5 +97,16 @@ public class GPT2Analyzer {
             sum += Math.tanh(logit); // Normalize to [-1, 1]
         }
         return sum / logits.length;
+    }
+    
+    public static void main(String[] args) {
+        try (Scanner scanner = new Scanner(System.in)) {
+            String text = scanner.nextLine();
+            AnalyzerResult result = analyzeText(text);
+            System.out.println(result.toString());
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            System.out.println("{\"left\": 50, \"right\": 50, \"message\": \"Analysis failed\"}");
+        }
     }
 }
