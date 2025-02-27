@@ -13,6 +13,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - finish of react front end and take some placeholder 
 - add the ai java programmes maybe some more research into how i might use them and api keys 
 - test and troubleshoot user login 
+- testing and some more wiring up of processes there needs to be some more work invovled it making sure this is all running and working
 
 
 ## COMPLETED
@@ -24,7 +25,10 @@ and to provide a view for tracking learning those softer skills github issue wil
 - End to end working checked using console messages
 - added login
 - added lexicon loader achieved a better understanding of how they work also
-
+- added and implemented maven project for easy dependency management
+- fixed project structure to not have any errors in this new maven structure this took ages
+- compiled built and cleaned project and finally resolved all the conflicts
+- implemented a factory pattern that allows me to add some model selctions to the front end to see difference 
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
