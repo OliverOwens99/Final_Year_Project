@@ -6,12 +6,12 @@
     <groupId>com.sentiment</groupId>
     <artifactId>sentiment-analyzer</artifactId>
     <version>1.0-SNAPSHOT</version>
-
+    
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <langchain4j.version>0.23.0</langchain4j.version>
+        <langchain4j.version>1.0.0-beta1</langchain4j.version>
     </properties>
 
     <dependencies>
@@ -34,6 +34,13 @@
             <version>${langchain4j.version}</version>
         </dependency>
         
+        <!-- Hugging Face integration for LangChain4j -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-hugging-face</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+        
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -49,6 +56,19 @@
     
     <build>
         <plugins>
+            <!-- Compiler plugin with explicit configuration -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
+            
+            <!-- Assembly plugin for creating a fat JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -69,4 +89,18 @@
             </plugin>
         </plugins>
     </build>
+    <repositories>
+    <repository>
+        <id>central</id>
+        <name>Maven Central</name>
+        <url>https://repo.maven.apache.org/maven2</url>
+        <snapshots>
+            <enabled>false</enabled>
+        </snapshots>
+    </repository>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
 </project>

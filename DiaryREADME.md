@@ -28,7 +28,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - added and implemented maven project for easy dependency management
 - fixed project structure to not have any errors in this new maven structure this took ages
 - compiled built and cleaned project and finally resolved all the conflicts
-- implemented a factory pattern that allows me to add some model selctions to the front end to see difference 
+- implemented a factory pattern that allows me to add some model selections to the front end to see difference 
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
