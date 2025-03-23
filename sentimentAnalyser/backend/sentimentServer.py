@@ -16,7 +16,8 @@ import os
 load_dotenv()
 # Define base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-JAVA_ANALYZERS_DIR = os.path.join(BASE_DIR, 'java-analysers')
+JAR_PATH = os.path.join(BASE_DIR, "java-analysers", "target", 
+                      "sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
