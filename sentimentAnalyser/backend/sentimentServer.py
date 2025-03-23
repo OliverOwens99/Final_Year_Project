@@ -8,7 +8,8 @@ import json
 import logging
 import requests
 from bs4 import BeautifulSoup
-
+from newspaper import Article
+import requests
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('pymongo').setLevel(logging.WARNING)
@@ -46,7 +47,36 @@ def load_user(user_id):
     if user:
         return User(user_id=user["_id"])
     return None
-
+def extract_text_from_url(url):
+    """Extract main article text from a URL using newspaper3k"""
+    try:
+        # Use newspaper3k for better article extraction
+        article = Article(url)
+        article.download()
+        article.parse()
+        
+        if not article.text or len(article.text) < 100:
+            # Fallback to BeautifulSoup if newspaper3k doesn't extract enough text
+            response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.extract()
+                
+            # Get text and clean it
+            text = soup.get_text()
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = '\n'.join(chunk for chunk in chunks if chunk)
+            return text[:5000]  # Limit text size
+            
+        return article.text[:5000]  # Limit text size for performance
+        
+    except Exception as e:
+        logging.error(f"Error extracting text from {url}: {e}")
+        raise Exception(f"Could not extract text from URL: {str(e)}")
+    
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -116,6 +146,7 @@ def extract_text_from_url(url):
         logging.error(f"Error extracting text from {url}: {str(e)}")
         raise Exception(f"Failed to extract text from URL: {str(e)}")
 
+
 @app.route('/analyze', methods=['POST'])
 @login_required
 def analyze():
@@ -124,38 +155,19 @@ def analyze():
     analyzer_type = data.get('analyzer_type', 'lexicon')
     model = data.get('model', 'gpt-3.5-turbo')
     
-    # Extract article text
     try:
+        # Extract article text from the URL
         article_text = extract_text_from_url(url)
-    except Exception as e:
-        return jsonify({'error': f"Error extracting text: {str(e)}"})
-    
-    # Analyze the text
-    try:
-        result = None
-        console_message = ""
         
-        if analyzer_type == 'transformer':
-            # Pass model parameter to transformer analyzer
-            result = run_java_analyzer(analyzer_type, article_text, model)
-        else:
-            # Use existing analyzers without model parameter
-            result = run_java_analyzer(analyzer_type, article_text)
-            
-        # Save analyzed link to database
-        links_collection.insert_one({
-            "url": url,
-            "analyzer": analyzer_type,
-            "result": result,
-            "user": current_user.id,
-            "timestamp": datetime.now()
-        })
-            
+        # Analyze the text
+        result = run_java_analyzer(analyzer_type, article_text, model)
+        
         return jsonify({
             'results': result,
-            'console_message': console_message
+            'console_message': f"Successfully analyzed article from {url}"
         })
     except Exception as e:
+        logging.error(f"Analysis error: {str(e)}", exc_info=True)
         return jsonify({'error': f"Analysis error: {str(e)}"})
 
 def run_java_analyzer(analyzer_type, text, model=None):
@@ -198,6 +210,7 @@ def run_java_analyzer(analyzer_type, text, model=None):
         raise Exception(f"Invalid JSON output from analyzer: {stdout}")
     except Exception as e:
         raise Exception(f"Error running analyzer: {str(e)}")
+
 
 @app.route('/history')
 @login_required
