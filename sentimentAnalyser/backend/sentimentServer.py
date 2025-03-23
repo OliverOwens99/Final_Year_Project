@@ -10,7 +10,15 @@ import requests
 from bs4 import BeautifulSoup
 from newspaper import Article
 import requests
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+# Define base paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+JAVA_ANALYZERS_DIR = os.path.join(BASE_DIR, 'java-analysers')
+
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('pymongo').setLevel(logging.WARNING)
 
@@ -173,9 +181,9 @@ def analyze():
 def run_java_analyzer(analyzer_type, text, model=None):
     """Run Java analyzer with the compiled JAR file"""
     java_programs = {
-        'llm': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.GPT2Analyzer'],
-        'transformer': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.TransformerAnalyzer'],
-        'lexicon': ['java', '-cp', './java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar', 'com.sentiment.LexiconAnalyzer']
+        'llm': ['java', '-cp', JAR_PATH, 'com.sentiment.GPT2Analyzer'],
+        'transformer': ['java', '-cp', JAR_PATH, 'com.sentiment.TransformerAnalyzer'],
+        'lexicon': ['java', '-cp', JAR_PATH, 'com.sentiment.LexiconAnalyzer']
     }
     
     if analyzer_type not in java_programs:
@@ -188,12 +196,15 @@ def run_java_analyzer(analyzer_type, text, model=None):
         cmd.extend(['--model', model])
     
     try:
+        # Pass environment variables to Java process
+        env = os.environ.copy()  
         process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env=env  # Pass environment variables
         )
         
         stdout, stderr = process.communicate(input=text)
@@ -210,7 +221,6 @@ def run_java_analyzer(analyzer_type, text, model=None):
         raise Exception(f"Invalid JSON output from analyzer: {stdout}")
     except Exception as e:
         raise Exception(f"Error running analyzer: {str(e)}")
-
 
 @app.route('/history')
 @login_required
