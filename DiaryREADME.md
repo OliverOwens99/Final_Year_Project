@@ -14,7 +14,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - add the ai java programmes maybe some more research into how i might use them and api keys 
 - test and troubleshoot user login 
 - testing and some more wiring up of processes there needs to be some more work invovled it making sure this is all running and working
-
+- need to get the transformer model properly working end to end 
 
 ## COMPLETED
 - Better understanding of the make up of AIs and the fact you can uses schemas and builders to guide LLMs to  structure your data accordingly using few-shot prompting or embedding model-based classification 
@@ -29,6 +29,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - fixed project structure to not have any errors in this new maven structure this took ages
 - compiled built and cleaned project and finally resolved all the conflicts
 - implemented a factory pattern that allows me to add some model selections to the front end to see difference 
+- lexicon an and pretrained model both working
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
@@ -37,3 +38,4 @@ and to provide a view for tracking learning those softer skills github issue wil
 - https://vite.dev/guide/
 - https://react.dev/
 - https://github.com/cjhutto/vaderSentiment/blob/master/vaderSentiment/vader_lexicon.txt for the vader text file
+- https://huggingface.co/bucketresearch/politicalBiasBERT for the pre-trained bert I used
