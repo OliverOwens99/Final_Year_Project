@@ -25,26 +25,43 @@ logging.getLogger('pymongo').setLevel(logging.WARNING)
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
-CORS(app)
+CORS(app, supports_credentials=True, origins=["http://localhost:5173", "http://127.0.0.1:5173"])
 
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+@login_manager.unauthorized_handler
+def unauthorized():
+    return jsonify({"error": "Authentication required"}), 401
 
 # MongoDB setup
-uri = "mongodb+srv://admin:admin@cluster0.8c7ngnf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(uri)
-
-# Send a ping to confirm a successful connection
-# try:
-#     client.admin.command('ping')
-#     print("Pinged your deployment. You successfully connected to MongoDB!")
-# except Exception as e:
-#     print(e)
-
-db = client.sentiment_analyzer
-users_collection = db.users
-links_collection = db.links
+try:
+    client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+    client.admin.command('ping')  # Test connection
+    db = client.sentiment_analyzer
+    users_collection = db.users
+    links_collection = db.links
+    logging.info("Connected to MongoDB successfully")
+except Exception as e:
+    logging.warning(f"MongoDB connection error: {e}. Using in-memory storage.")
+    # Simple in-memory storage for testing when MongoDB isn't available
+    users_db = {"olly": {"password": "demo"}}  # Keep your hardcoded user
+    links_db = []
+    
+    # Mock collections for testing
+    class MemoryCollection:
+        def __init__(self, db):
+            self.db = db
+        def find_one(self, query):
+            key = query.get("_id")
+            return {"_id": key, "password": self.db.get(key)} if key in self.db else None
+        def insert_one(self, doc):
+            self.db[doc["_id"]] = doc.get("password")
+        def find(self, query=None):
+            return [{"_id": k, "password": v} for k, v in self.db.items()]
+    
+    users_collection = MemoryCollection(users_db)
+    links_collection = MemoryCollection([]) 
 
 class User(UserMixin):
     def __init__(self, user_id):
@@ -95,10 +112,25 @@ def register():
     if not username or not password:
         return jsonify({'error': 'Missing username or password'}), 400
     
+    # Check if user already exists
+    existing_user = users_collection.find_one({"_id": username})
+    if existing_user:
+        return jsonify({'error': 'Username already exists'}), 409
+    
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
     users_collection.insert_one({"_id": username, "password": hashed_password})
     
+    # After registration, log the user in automatically 
+    login_user(User(user_id=username))
+    
     return jsonify({'message': 'User registered successfully'}), 201
+
+@app.route('/check-auth', methods=['GET'])
+def check_auth():
+    """Check if the user is authenticated"""
+    if current_user.is_authenticated:
+        return jsonify({'authenticated': True, 'user': current_user.id})
+    return jsonify({'authenticated': False}), 401
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -106,54 +138,20 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    # Hardcoded credentials for demo purposes
-    hardcoded_username = 'olly'
-    hardcoded_password = 'demo'
-    
-    if username == hardcoded_username and password == hardcoded_password:
+    # Hardcoded credentials for testing
+    if username == 'olly' and password == 'demo':
         login_user(User(user_id=username))
         return jsonify({'message': 'Login successful'}), 200
     
-    user = users_collection.find_one({"_id": username})
-    if user and bcrypt.check_password_hash(user['password'], password):
-        login_user(User(user_id=username))
-        return jsonify({'message': 'Login successful'}), 200
+    try:
+        user = users_collection.find_one({"_id": username})
+        if user and bcrypt.check_password_hash(user['password'], password):
+            login_user(User(user_id=username))
+            return jsonify({'message': 'Login successful'}), 200
+    except Exception as e:
+        logging.error(f"Login error: {e}")
     
     return jsonify({'error': 'Invalid username or password'}), 401
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return jsonify({'message': 'Logged out successfully'}), 200
-
-def extract_text_from_url(url):
-    """Extract article text from a URL using BeautifulSoup"""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Remove scripts, styles, and other non-content elements
-        for element in soup(['script', 'style', 'header', 'footer', 'nav']):
-            element.extract()
-        
-        # Get paragraphs - this is a simplified approach
-        paragraphs = soup.find_all('p')
-        text = ' '.join([para.get_text().strip() for para in paragraphs])
-        
-        # Clean up spacing
-        text = ' '.join(text.split())
-        
-        if not text:
-            # If no paragraphs found, get all text
-            text = soup.get_text(separator=' ', strip=True)
-        
-        return text
-    except Exception as e:
-        logging.error(f"Error extracting text from {url}: {str(e)}")
-        raise Exception(f"Failed to extract text from URL: {str(e)}")
 
 
 @app.route('/analyze', methods=['POST'])
@@ -181,46 +179,63 @@ def analyze():
 
 def run_java_analyzer(analyzer_type, text, model=None):
     """Run Java analyzer with the compiled JAR file"""
-    java_programs = {
-        'llm': ['java', '-cp', JAR_PATH, 'com.sentiment.GPT2Analyzer'],
-        'transformer': ['java', '-cp', JAR_PATH, 'com.sentiment.TransformerAnalyzer'],
-        'lexicon': ['java', '-cp', JAR_PATH, 'com.sentiment.LexiconAnalyzer']
+    # Check if JAR exists
+    if not os.path.exists(JAR_PATH):
+        raise Exception(f"JAR file not found: {JAR_PATH}. Make sure to build the project with Maven first.")
+    
+    # Use the JAVA_PATH from .env if available, otherwise try system java
+    java_executable = os.environ.get('JAVA_PATH', 'java')
+    
+    # If the specified java_executable doesn't exist, try some common locations
+    if not os.path.exists(java_executable) and java_executable != 'java':
+        logging.warning(f"JAVA_PATH '{java_executable}' not found, trying system Java")
+        java_executable = 'java'
+    
+    # Define the analyzer classes
+    analyzer_classes = {
+        'llm': 'com.sentiment.GPT2Analyzer',
+        'transformer': 'com.sentiment.TransformerAnalyzer',
+        'lexicon': 'com.sentiment.LexiconAnalyzer'
     }
     
-    if analyzer_type not in java_programs:
+    if analyzer_type not in analyzer_classes:
         raise ValueError(f"Unknown analyzer type: {analyzer_type}")
     
-    cmd = java_programs[analyzer_type].copy()  # Use copy to avoid modifying the original
+    # Build the command using the specified java executable
+    cmd = [java_executable, "-cp", JAR_PATH, analyzer_classes[analyzer_type]]
     
     # Add model parameter for transformer analyzer
     if analyzer_type == 'transformer' and model:
-        cmd.extend(['--model', model])
+        cmd.extend(["--model", model])
     
     try:
-        # Pass environment variables to Java process
-        env = os.environ.copy()  
-        process = subprocess.Popen(
+        # Log the command being executed for debugging
+        logging.info(f"Executing: {' '.join(cmd)}")
+        
+        # Use subprocess.run instead of Popen for simplicity
+        result = subprocess.run(
             cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            input=text,
+            capture_output=True,
             text=True,
-            env=env  # Pass environment variables
+            check=False  # Don't raise exception on non-zero return code
         )
         
-        stdout, stderr = process.communicate(input=text)
+        if result.stderr:
+            logging.warning(f"Java analyzer stderr: {result.stderr}")
         
-        if stderr:
-            logging.warning(f"Java analyzer stderr: {stderr}")
+        if result.returncode != 0:
+            raise Exception(f"Java program error ({result.returncode}): {result.stderr}")
         
-        if process.returncode != 0:
-            raise Exception(f"Java program error: {stderr}")
+        # Try to parse the JSON result
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError:
+            logging.error(f"Invalid JSON: '{result.stdout}'")
+            raise Exception("Analyzer returned invalid JSON")
             
-        return json.loads(stdout)
-        
-    except json.JSONDecodeError:
-        raise Exception(f"Invalid JSON output from analyzer: {stdout}")
     except Exception as e:
+        logging.error(f"Error running Java analyzer: {str(e)}")
         raise Exception(f"Error running analyzer: {str(e)}")
 
 @app.route('/history')

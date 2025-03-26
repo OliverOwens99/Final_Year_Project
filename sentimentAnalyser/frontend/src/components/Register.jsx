@@ -1,10 +1,13 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const navigate = useNavigate(); // Initialize navigate
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,12 +19,15 @@ function Register() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
+        credentials: 'include' // Add this to handle cookies properly
       });
+      
       const data = await response.json();
+      
       if (response.ok) {
         console.log('Registration successful:', data);
-        // Redirect to the login page or set user state
-        navigate('/analyze');
+        // Redirect to login page instead of analyze
+        navigate('/login');
       } else {
         setError(data.error);
       }
