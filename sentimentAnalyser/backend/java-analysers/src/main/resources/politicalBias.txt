@@ -39,3 +39,6 @@ border	1
 healthcare	-1
 education	-0.5
 privatization	1.5
+ice 2
+trump   2
+eu -2
