@@ -10,7 +10,7 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.huggingface.HuggingFaceChatModel;
-import dev.langchain4j.model.huggingface.HuggingFaceModelName;
+import org.json.JSONObject;
 
 public class TransformerAnalyzer {
     // Model factory - allows easily swapping between different models
@@ -20,27 +20,22 @@ public class TransformerAnalyzer {
     private static final String SYSTEM_PROMPT =
             "You are an AI specialized in political bias analysis. "
                     + "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). "
-                    + "Return only the numerical score and a brief explanation.";
+                    + "Return ONLY a valid JSON object with this exact structure: "
+                    + "{\"score\": [number between -1 and 1], \"explanation\": \"[your explanation]\"}";
 
     static {
-        // Initialize model registry
+        // Initialize model registry - one model per provider
         MODEL_REGISTRY.put("gpt-3.5-turbo",
                 () -> OpenAiChatModel.builder().apiKey(System.getenv("OPENAI_API_KEY"))
                         .modelName("gpt-3.5-turbo").temperature(0.0).build());
 
-        MODEL_REGISTRY.put("gpt-4",
-                () -> OpenAiChatModel.builder().apiKey(System.getenv("OPENAI_API_KEY"))
-                        .modelName("gpt-4").temperature(0.0).build());
-
-        MODEL_REGISTRY.put("mistral-7b",
+        // Small Hugging Face model (well under 10GB)
+        MODEL_REGISTRY.put("tiny-llama",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("mistralai/Mistral-7B-Instruct-v0.2").temperature(0.1).build());
-        MODEL_REGISTRY.put("llama-7b",
+                        .modelId("TinyLlama/TinyLlama-1.1B-Chat-v1.0").temperature(0.1).build());
+        MODEL_REGISTRY.put("deepseek-1.3b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("llamail/llama-7B").temperature(0.1).build());
-        MODEL_REGISTRY.put("deepseek-7b",
-                () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("deepseek-ai/deepseek-llm-7b-chat").temperature(0.1).build());
+                        .modelId("deepseek-ai/deepseek-coder-1.3b-base").temperature(0.1).build());
 
         // Initialize the model based on available API keys
         String openaiKey = System.getenv("OPENAI_API_KEY");
@@ -59,15 +54,14 @@ public class TransformerAnalyzer {
                     System.err
                             .println("Warning: Requested OpenAI model but OPENAI_API_KEY not set.");
                     selectDefaultModel(openaiKey, hfKey);
-                } else if ((modelName.contains("mistral") || modelName.contains("llama"))
-                        && hfKey == null) {
+                } else if ((!modelName.startsWith("gpt")) && hfKey == null) {
                     System.err.println(
                             "Warning: Requested Hugging Face model but HF_API_KEY not set.");
                     selectDefaultModel(openaiKey, hfKey);
                 } else {
                     try {
                         model = MODEL_REGISTRY.get(modelName).get();
-                        System.out.println("Using model: " + modelName);
+                        System.err.println("Using model: " + modelName);
                     } catch (Exception e) {
                         System.err.println("Error initializing model: " + e.getMessage());
                         selectDefaultModel(openaiKey, hfKey);
@@ -86,10 +80,11 @@ public class TransformerAnalyzer {
         try {
             if (openaiKey != null) {
                 model = MODEL_REGISTRY.get("gpt-3.5-turbo").get();
-                System.out.println("Using default model: gpt-3.5-turbo");
+                System.err.println("Using default model: gpt-3.5-turbo"); // Fixed: changed to
+                                                                          // stderr
             } else if (hfKey != null) {
-                model = MODEL_REGISTRY.get("mistral-7b").get();
-                System.out.println("Using default model: mistral-7b");
+                model = MODEL_REGISTRY.get("tiny-llama").get();
+                System.err.println("Using default model: tiny-llama");
             } else {
                 model = null;
                 System.err.println("No API keys available, model will not function");
@@ -136,45 +131,40 @@ public class TransformerAnalyzer {
             String content = response.content().text();
 
             // Parse score from response
-            double score = parseScore(content);
+            JSONObject result = parseResponse(content);
+            double score = result.getDouble("score");
+            String explanation = result.getString("explanation");
 
             // Convert to percentages
             double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
             double rightPercentage = 100 - leftPercentage;
 
-            return new AnalyzerResult(leftPercentage, rightPercentage,
-                    extractExplanation(content, score));
-
+            return new AnalyzerResult(leftPercentage, rightPercentage, explanation);
         } catch (Exception e) {
             System.err.println("Analysis error: " + e.getMessage());
             return new AnalyzerResult(50, 50, "Error analyzing text: " + e.getMessage());
         }
     }
 
-    private static double parseScore(String response) {
+    private static JSONObject parseResponse(String response) {
         try {
-            // Extract first number from response (should be the bias score)
-            String[] words = response.split("\\s+");
-            for (String word : words) {
-                if (word.matches("-?\\d*\\.?\\d+")) {
-                    double score = Double.parseDouble(word);
-                    return Math.max(-1, Math.min(1, score)); // Clamp between -1 and 1
-                }
-            }
-            return 0.0;
-        } catch (Exception e) {
-            return 0.0;
-        }
-    }
+            // Find the first { and last } to extract just the JSON part
+            int startIdx = response.indexOf('{');
+            int endIdx = response.lastIndexOf('}') + 1;
 
-    private static String extractExplanation(String response, double score) {
-        // Remove the score from the beginning of the response
-        String scoreStr = String.valueOf(score);
-        int index = response.indexOf(scoreStr);
-        if (index >= 0) {
-            return response.substring(index + scoreStr.length()).trim();
+            if (startIdx >= 0 && endIdx > startIdx) {
+                String jsonStr = response.substring(startIdx, endIdx);
+                return new JSONObject(jsonStr);
+            }
+            throw new Exception("No valid JSON found in response");
+        } catch (Exception e) {
+            System.err.println("Error parsing JSON response: " + e.getMessage());
+            // Create default JSON with neutral values
+            JSONObject defaultJson = new JSONObject();
+            defaultJson.put("score", 0.0);
+            defaultJson.put("explanation", "Failed to parse model response");
+            return defaultJson;
         }
-        return response.trim();
     }
 
     public static void main(String[] args) {
@@ -193,7 +183,8 @@ public class TransformerAnalyzer {
             AnalyzerResult result = analyzeText(text);
             System.out.println(result.toString());
         } catch (Exception e) {
-            System.out.println(String.format("{\"error\": \"%s\", \"left\": 50, \"right\": 50}",
+            System.out.println(String.format(
+                    "{\"left\": 50, \"right\": 50, \"message\": \"Analysis failed: %s\"}",
                     e.getMessage().replace("\"", "\\\"")));
         }
     }

@@ -36,14 +36,16 @@ public class AnalyzerResult {
 
     @Override
     public String toString() {
-        return String.format("{\"left\": %.2f, \"right\": %.2f, \"message\": \"%s\"}", 
-            left, right, escapeJsonString(message));
+        // Use the escapeJsonString method that's already defined but not used
+        return String.format("{\"left\": %.1f, \"right\": %.1f, \"message\": \"%s\"}",
+                left, right, escapeJsonString(message));
     }
     
     private String escapeJsonString(String input) {
         if (input == null) return "";
-        return input.replace("\"", "\\\"")
-                   .replace("\\", "\\\\")
+        // IMPORTANT: The backslash replacement must come first!
+        return input.replace("\\", "\\\\")  // This must be first or you'll double-escape
+                   .replace("\"", "\\\"")
                    .replace("\b", "\\b")
                    .replace("\f", "\\f")
                    .replace("\n", "\\n")

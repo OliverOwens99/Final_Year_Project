@@ -1,0 +1,41 @@
+liberal	-2
+conservative	2
+progressive	-2
+traditional	2
+socialism	-2
+capitalism	2
+democrat	-2
+republican	2
+left-wing	-2
+right-wing	2
+welfare	-1.5
+deregulation	1.5
+communist	-2
+nationalist	2
+socialist	-2
+libertarian	2
+trump	2
+maga	2
+biden	-1.5
+harris	-1.5
+elon	1.5
+tesla	0.5
+sin fein	-1.8
+sinn féin	-1.8
+fianna fail	0.5
+fianna fáil	0.5
+fine gael	1
+labour	-1.5
+green	-1
+climate	-1
+tax	-0.5
+freedom	1
+gun	1.5
+regulation	-1
+government	-0.5
+military	1
+immigration	-0.5
+border	1
+healthcare	-1
+education	-0.5
+privatization	1.5

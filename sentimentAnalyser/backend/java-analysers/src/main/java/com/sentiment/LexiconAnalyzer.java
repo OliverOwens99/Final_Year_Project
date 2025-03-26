@@ -25,7 +25,7 @@ public class LexiconAnalyzer {
             }
             
             // Debug path information
-            System.out.println("Working Directory = " + Paths.get("").toAbsolutePath());
+            //System.err.println("Working Directory = " + Paths.get("").toAbsolutePath());
             
             loadVaderLexicon(vaderStream);
             loadPoliticalLexicon(politicalStream);

@@ -193,7 +193,7 @@ def run_java_analyzer(analyzer_type, text, model=None):
     
     # Define the analyzer classes
     analyzer_classes = {
-        'llm': 'com.sentiment.GPT2Analyzer',
+        'llm': 'com.sentiment.BertPoliticalAnalyser',
         'transformer': 'com.sentiment.TransformerAnalyzer',
         'lexicon': 'com.sentiment.LexiconAnalyzer'
     }
