@@ -50,6 +50,7 @@ target/
 .idea/
 .vscode/
 *.iml
+*.onnx 
 
 # IDE specific files
 .vscode/
@@ -61,3 +62,4 @@ target/
 # Operating System
 .DS_Store
 Thumbs.db
+
