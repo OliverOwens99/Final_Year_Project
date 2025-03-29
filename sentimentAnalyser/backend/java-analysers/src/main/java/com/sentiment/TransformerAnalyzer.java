@@ -120,26 +120,23 @@ public class TransformerAnalyzer {
                 throw new IllegalStateException(
                         "Model not initialized. Check API key environment variables.");
             }
-
+    
             // Clean text before analysis
             text = AnalyzerResult.cleanText(text);
-
+    
             // Create prompt with system and user messages
             var response = model.generate(new SystemMessage(SYSTEM_PROMPT), new UserMessage(text));
-
+    
             // Extract the content from the response
             String content = response.content().text();
-
+    
             // Parse score from response
             JSONObject result = parseResponse(content);
             double score = result.getDouble("score");
             String explanation = result.getString("explanation");
-
-            // Convert to percentages
-            double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
-            double rightPercentage = 100 - leftPercentage;
-
-            return new AnalyzerResult(leftPercentage, rightPercentage, explanation);
+    
+            // Use the factory method for consistency
+            return AnalyzerResult.createTransformerResult(score, explanation);
         } catch (Exception e) {
             System.err.println("Analysis error: " + e.getMessage());
             return new AnalyzerResult(50, 50, "Error analyzing text: " + e.getMessage());

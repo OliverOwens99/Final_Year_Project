@@ -74,6 +74,15 @@ public class AnalyzerResult {
         this.message = message;
     }
 
+    // Add to AnalyzerResult.java
+    public static AnalyzerResult createTransformerResult(double score, String explanation) {
+        // Use 50 as multiplier for transformer results since their scale is [-1,1]
+        double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
+        double rightPercentage = 100 - leftPercentage;
+        
+        // Use the provided explanation directly
+        return new AnalyzerResult(leftPercentage, rightPercentage, explanation);
+    }
 
 
 
