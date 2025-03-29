@@ -25,18 +25,20 @@ public class TransformerAnalyzer {
 
     static {
         // Initialize model registry - one model per provider
-        MODEL_REGISTRY.put("gpt-3.5-turbo",
-                () -> OpenAiChatModel.builder().apiKey(System.getenv("OPENAI_API_KEY"))
-                        .modelName("gpt-3.5-turbo").temperature(0.0).build());
-
-        // Small Hugging Face model (well under 10GB)
-        MODEL_REGISTRY.put("tiny-llama",
+        MODEL_REGISTRY.put("phi-2",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("TinyLlama/TinyLlama-1.1B-Chat-v1.0").temperature(0.1).build());
-        MODEL_REGISTRY.put("deepseek-1.3b",
-                () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("deepseek-ai/deepseek-coder-1.3b-base").temperature(0.1).build());
+                        .modelId("microsoft/phi-2") // Excellent 2.7B parameter model
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120)).build());
 
+        MODEL_REGISTRY.put("gemma-2b-it",
+                () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                        .modelId("google/gemma-2b-it") // Google's 2B instruction-tuned model
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120)).build());
+
+        MODEL_REGISTRY.put("qwen-1.8b",
+                () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                        .modelId("Qwen/Qwen1.5-1.8B-Chat") // Strong 1.8B chat model
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120)).build());
         // Initialize the model based on available API keys
         String openaiKey = System.getenv("OPENAI_API_KEY");
         String hfKey = System.getenv("HF_API_KEY");
@@ -49,12 +51,8 @@ public class TransformerAnalyzer {
             // Use model specified in env var or select based on available keys
             String modelName = System.getenv("LLM_MODEL_NAME");
             if (modelName != null && MODEL_REGISTRY.containsKey(modelName)) {
-                // Check if we have the right API key for requested model
-                if ((modelName.startsWith("gpt") && openaiKey == null)) {
-                    System.err
-                            .println("Warning: Requested OpenAI model but OPENAI_API_KEY not set.");
-                    selectDefaultModel(openaiKey, hfKey);
-                } else if ((!modelName.startsWith("gpt")) && hfKey == null) {
+                // Remove the check for OpenAI models since we don't want to use them
+                if (hfKey == null) {
                     System.err.println(
                             "Warning: Requested Hugging Face model but HF_API_KEY not set.");
                     selectDefaultModel(openaiKey, hfKey);
@@ -70,6 +68,7 @@ public class TransformerAnalyzer {
             } else {
                 selectDefaultModel(openaiKey, hfKey);
             }
+
         }
     }
 
@@ -78,16 +77,14 @@ public class TransformerAnalyzer {
      */
     private static void selectDefaultModel(String openaiKey, String hfKey) {
         try {
-            if (openaiKey != null) {
-                model = MODEL_REGISTRY.get("gpt-3.5-turbo").get();
-                System.err.println("Using default model: gpt-3.5-turbo"); // Fixed: changed to
-                                                                          // stderr
-            } else if (hfKey != null) {
-                model = MODEL_REGISTRY.get("tiny-llama").get();
-                System.err.println("Using default model: tiny-llama");
+            // Since we don't want to use OpenAI models at all
+            if (hfKey != null) {
+                // Use one of your defined models
+                model = MODEL_REGISTRY.get("falcon-small").get();
+                System.err.println("Using default model: falcon-small");
             } else {
                 model = null;
-                System.err.println("No API keys available, model will not function");
+                System.err.println("No HF_API_KEY available, model will not function");
             }
         } catch (Exception e) {
             model = null;
@@ -120,21 +117,21 @@ public class TransformerAnalyzer {
                 throw new IllegalStateException(
                         "Model not initialized. Check API key environment variables.");
             }
-    
+
             // Clean text before analysis
             text = AnalyzerResult.cleanText(text);
-    
+
             // Create prompt with system and user messages
             var response = model.generate(new SystemMessage(SYSTEM_PROMPT), new UserMessage(text));
-    
+
             // Extract the content from the response
             String content = response.content().text();
-    
+
             // Parse score from response
             JSONObject result = parseResponse(content);
             double score = result.getDouble("score");
             String explanation = result.getString("explanation");
-    
+
             // Use the factory method for consistency
             return AnalyzerResult.createTransformerResult(score, explanation);
         } catch (Exception e) {
@@ -145,21 +142,62 @@ public class TransformerAnalyzer {
 
     private static JSONObject parseResponse(String response) {
         try {
+            System.err.println("Raw response: " + response);
+            
             // Find the first { and last } to extract just the JSON part
             int startIdx = response.indexOf('{');
             int endIdx = response.lastIndexOf('}') + 1;
-
+    
             if (startIdx >= 0 && endIdx > startIdx) {
                 String jsonStr = response.substring(startIdx, endIdx);
-                return new JSONObject(jsonStr);
+                JSONObject parsed = new JSONObject(jsonStr);
+                
+                // Handle case where score is an array
+                if (parsed.get("score") instanceof org.json.JSONArray) {
+                    org.json.JSONArray scoreArray = parsed.getJSONArray("score");
+                    if (scoreArray.length() > 0) {
+                        Object value = scoreArray.get(0);
+                        if (value instanceof String) {
+                            // Handle case where the model just repeats the instructions
+                            String strValue = (String)value;
+                            if (strValue.contains("number between")) {
+                                parsed.put("score", 0.0);
+                            } else {
+                                try {
+                                    double numValue = Double.parseDouble(strValue);
+                                    parsed.put("score", numValue);
+                                } catch (NumberFormatException e) {
+                                    parsed.put("score", 0.0);
+                                }
+                            }
+                        } else {
+                            parsed.put("score", scoreArray.getDouble(0));
+                        }
+                    } else {
+                        parsed.put("score", 0.0);
+                    }
+                }
+                
+                // Validate score is within expected range
+                double score = parsed.getDouble("score");
+                if (score < -1 || score > 1) {
+                    score = Math.max(-1, Math.min(1, score));
+                    parsed.put("score", score);
+                }
+                
+                return parsed;
             }
-            throw new Exception("No valid JSON found in response");
-        } catch (Exception e) {
-            System.err.println("Error parsing JSON response: " + e.getMessage());
-            // Create default JSON with neutral values
+            
+            // No JSON found, create default
             JSONObject defaultJson = new JSONObject();
             defaultJson.put("score", 0.0);
-            defaultJson.put("explanation", "Failed to parse model response");
+            defaultJson.put("explanation", "Model did not return valid JSON format");
+            return defaultJson;
+        } catch (Exception e) {
+            System.err.println("Error parsing JSON response: " + e.getMessage());
+            JSONObject defaultJson = new JSONObject();
+            defaultJson.put("score", 0.0);
+            defaultJson.put("explanation", "Failed to parse model response: " + e.getMessage());
             return defaultJson;
         }
     }

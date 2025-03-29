@@ -6,7 +6,7 @@ function SentimentAnalyzer() {
   const [url, setUrl] = useState('');
   const [analyzer, setAnalyzer] = useState('lexicon');
   //const [analyzer, setAnalyzer] = useState('llm');
-  const [model, setModel] = useState('gpt-3.5-turbo');
+  const [model, setModel] = useState('phi-2');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -105,16 +105,17 @@ function SentimentAnalyzer() {
           <option value="lexicon">Lexicon Analysis</option>
         </select>
 
-        {/* Updated model selector dropdown with all models from TransformerAnalyzer.java */}
+        {/* Model dropdown */}
         {analyzer === 'transformer' && (
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
             style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
           >
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</option>
-            <option value="tiny-llama">TinyLlama-1.1B (Hugging Face)</option>
-            <option value="deepseek-1.3b">DeepSeek-1.3B (Hugging Face)</option>
+            {/* HuggingFace Models - match exactly what's in TransformerAnalyzer.java */}
+            <option value="phi-2">Microsoft Phi-2 (2.7B parameters)</option>
+            <option value="gemma-2b-it">Google Gemma 2B-IT</option>
+            <option value="qwen-1.8b">Qwen 1.8B Chat</option>
           </select>
         )}
 
