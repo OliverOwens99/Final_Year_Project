@@ -256,9 +256,7 @@ public class LexiconAnalyzer {
         }
         
         // Calculate weighted score
-        double totalScore = calculateWeightedScore(politicalScore, vaderScore, politicalMatches, vaderMatches);
-        
-        return createResult(totalScore, politicalMatches, vaderMatches);
+        return AnalyzerResult.createLexiconResult(politicalScore, vaderScore, politicalMatches, vaderMatches);
     }
     
     // Calculate weighted score

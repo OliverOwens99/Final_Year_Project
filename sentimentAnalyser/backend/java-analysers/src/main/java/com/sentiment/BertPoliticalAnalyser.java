@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Scanner;
 
 public class BertPoliticalAnalyser {
     private static OrtEnvironment env;
@@ -78,15 +77,9 @@ public class BertPoliticalAnalyser {
             OnnxValue onnxValue = output.get(0);
             float[] logits = ((OnnxTensor) onnxValue).getFloatBuffer().array();
             
-            double bias = calculatePoliticalBias(logits);
-            double leftScore = Math.max(0, Math.min(100, 50 - (bias * 25)));
-            double rightScore = 100 - leftScore;
-            
-            return new AnalyzerResult(
-                leftScore,
-                rightScore,
-                String.format("Political bias analysis: %.2f (negative=left, positive=right)", bias)
-            );
+           // Use the factory method instead
+           double bias = calculatePoliticalBias(logits);
+           return AnalyzerResult.createBertResult(bias);
             
         } catch (OrtException e) {
             System.err.println("Analysis error: " + e.getMessage());
@@ -95,22 +88,28 @@ public class BertPoliticalAnalyser {
     }
 
     private static long[] tokenizeText(String text) {
-        // Create a list to hold token IDs
         List<Long> tokenIds = new ArrayList<>();
         
         // Add [CLS] token first (ID 101 in BERT)
         tokenIds.add(101L);
         
         // Split text into words
-        String[] words = text.split("\\s+");
-        int maxWords = Math.min(words.length, MAX_LENGTH - 2); // Reserve space for [CLS] and [SEP]
+        String[] words = text.replaceAll("[^a-zA-Z0-9\\s]", " ").split("\\s+");
+        int maxWords = Math.min(words.length, MAX_LENGTH - 2);
         
-        // Convert words to token IDs (simplified)
+        // Convert words to token IDs - stay within valid range [-28996,28995]
         for (int i = 0; i < maxWords; i++) {
-            // Use hashCode but with BERT's vocab size (30522)
-            long tokenId = Math.abs(words[i].hashCode() % 30522);
-            // Avoid 0, 101, and 102 which are special tokens
-            if (tokenId == 0 || tokenId == 101 || tokenId == 102) tokenId += 1000;
+            String word = words[i].toLowerCase();
+            if (word.isEmpty()) continue;
+            
+            // Generate a consistent but bounded token ID
+            int hashValue = word.hashCode();
+            long tokenId;
+            
+            // Map to range [1000, 28000] to avoid special tokens and stay within bounds
+            // Using smaller range than maximum to be safe
+            tokenId = 1000 + Math.abs(hashValue % 27000);
+            
             tokenIds.add(tokenId);
         }
         

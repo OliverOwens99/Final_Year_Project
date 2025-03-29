@@ -19,6 +19,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JAR_PATH = os.path.join(BASE_DIR, "java-analysers", "target", 
                       "sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar")
 
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+HEADERS = {'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml,application/xml'}
+
+
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('pymongo').setLevel(logging.WARNING)
@@ -78,34 +83,81 @@ def load_user(user_id):
         return User(user_id=user["_id"])
     return None
 def extract_text_from_url(url):
-    """Extract main article text from a URL using newspaper3k"""
+    # Check if it's an obvious download link before making any requests
+    download_extensions = ['.pdf', '.zip', '.exe', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+    if any(url.lower().endswith(ext) for ext in download_extensions):
+        return "This appears to be a download link, not an article."
+    
     try:
-        # Use newspaper3k for better article extraction
+        # Try newspaper3k first
         article = Article(url)
         article.download()
         article.parse()
         
-        if not article.text or len(article.text) < 100:
-            # Fallback to BeautifulSoup if newspaper3k doesn't extract enough text
-            response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+        # If we got reasonable text content, use it
+        if article.text and len(article.text) > 100:
+            return article.text[:5000]
+    except Exception as primary_error:
+        logging.warning(f"Primary extraction failed: {str(primary_error)}")
+        # Continue to fallback methods
+        
+    # Fallback 1: Direct requests with browser-like headers
+    try:
+        logging.info(f"newspaper3k failed, trying direct requests")
+        session = requests.Session()
+        session.headers.update(HEADERS)
+        
+        # Some sites check referer or require cookies
+        session.headers.update({'Referer': 'https://www.google.com/'})
+        
+        response = session.get(url, timeout=15)
+        response.raise_for_status()  # Raise exception for 4XX/5XX errors
+        
+        # Check if we got HTML content
+        if 'text/html' in response.headers.get('Content-Type', ''):
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Remove script and style elements
-            for script in soup(["script", "style"]):
-                script.extract()
+            # Remove non-content elements
+            for element in soup(["script", "style", "nav", "header", "footer", "meta"]):
+                element.extract()
                 
-            # Get text and clean it
-            text = soup.get_text()
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = '\n'.join(chunk for chunk in chunks if chunk)
-            return text[:5000]  # Limit text size
+            # Try to find main content - common content containers
+            main_content = None
+            for selector in ['article', 'main', '[role="main"]', '.content', '#content', '.article-body', '.story-body']:
+                main_content = soup.select_one(selector)
+                if main_content and len(main_content.get_text(strip=True)) > 200:
+                    break
+                    
+            # Extract text from main content if found, otherwise from the whole page
+            if main_content:
+                text = main_content.get_text(separator=' ')
+            else:
+                text = soup.get_text(separator=' ')
+                
+            # Clean up text
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            text = " ".join(lines)
             
-        return article.text[:5000]  # Limit text size for performance
-        
+            if len(text) > 100:
+                return text[:5000]
+                
+        # Check for common paywalls or subscription blocks
+        if any(term in response.text.lower() for term in ['subscribe', 'subscription', 'paywall', 'sign in to read']):
+            return "This article appears to be behind a paywall and cannot be fully analyzed."
+            
+    except requests.exceptions.HTTPError as http_err:
+        if http_err.response.status_code == 404:
+            return "The article could not be found (404 error). The URL might be incorrect or the content may have been removed."
+        elif http_err.response.status_code == 403:
+            return "Access to this article is forbidden (403 error). The website may be blocking automated access."
+        else:
+            logging.error(f"HTTP error: {http_err}")
+            
     except Exception as e:
-        logging.error(f"Error extracting text from {url}: {e}")
-        raise Exception(f"Could not extract text from URL: {str(e)}")
+        logging.error(f"Fallback extraction error: {str(e)}")
+    
+    # If we get here, all extraction methods failed
+    return "Could not extract text from this URL. The article might be behind a paywall, or the website may block automated access."
     
 @app.route('/register', methods=['POST'])
 def register():
