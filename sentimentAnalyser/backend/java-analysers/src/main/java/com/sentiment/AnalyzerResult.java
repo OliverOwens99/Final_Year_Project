@@ -52,4 +52,7 @@ public class AnalyzerResult {
                    .replace("\r", "\\r")
                    .replace("\t", "\\t");
     }
+    public String getMessage() {
+        return this.message;
+    }
 }

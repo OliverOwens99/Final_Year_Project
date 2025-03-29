@@ -36,6 +36,10 @@ def unauthorized():
 
 # MongoDB setup
 try:
+    # Get the URI from environment variables
+    uri = os.environ.get("uri")
+    
+    
     client = MongoClient(uri, serverSelectionTimeoutMS=5000)
     client.admin.command('ping')  # Test connection
     db = client.sentiment_analyzer
