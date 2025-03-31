@@ -6,9 +6,24 @@ public class AnalyzerResult {
     private final double left;
     private final double right;
     private final String message;
+    private final String explanation; // Add this field
 
     private static final Pattern URL_PATTERN = Pattern.compile("(https?://|www\\.)\\S+|\\S+\\.(pdf|zip|exe|doc|docx|xls|xlsx|ppt|pptx)\\S*");
     private static final Pattern SPECIAL_CHARS = Pattern.compile("[^a-z\\s.,!?]");
+
+    public AnalyzerResult(double left, double right, String message) {
+        this.left = left;
+        this.right = right;
+        this.message = message;
+        this.explanation = message; // Use message as default explanation
+    }
+
+    public AnalyzerResult(double left, double right, String message, String explanation) {
+        this.left = left;
+        this.right = right;
+        this.message = message;
+        this.explanation = explanation;
+    }
 
     public static String cleanText(String text) {
         if (text == null)
@@ -68,37 +83,33 @@ public class AnalyzerResult {
         return new AnalyzerResult(leftPercentage, rightPercentage, message);
     }
         
-    public AnalyzerResult(double left, double right, String message) {
-        this.left = left;
-        this.right = right;
-        this.message = message;
-    }
+
 
     // Add to AnalyzerResult.java
     public static AnalyzerResult createTransformerResult(double score, String explanation) {
-        // Detect placeholder text in the explanation
-        if (explanation.contains("[") && explanation.contains("]") || 
+        System.err.println("Creating result with score: " + score);
+        
+        // Check for placeholder text
+        if (explanation == null || 
             explanation.trim().isEmpty() ||
-            explanation.equals("null")) {
-            // Replace with a more useful message based on score
-            if (score < -0.3) {
-                explanation = "The text shows significant left-leaning political bias (score: " + score + ")";
-            } else if (score < 0) {
-                explanation = "The text shows slight left-leaning political bias (score: " + score + ")";
-            } else if (score > 0.3) {
-                explanation = "The text shows significant right-leaning political bias (score: " + score + ")";
-            } else if (score > 0) {
-                explanation = "The text shows slight right-leaning political bias (score: " + score + ")";
-            } else {
-                explanation = "The text appears politically neutral (score: " + score + ")";
-            }
+            explanation.equals("[detailed political bias analysis explaining WHY the text leans left or right]")) {
+            
+            explanation = "The model did not provide a detailed analysis. Score: " + score;
         }
     
-        // Calculate percentages
-        double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
+        // Calculate percentages based on score
+        double leftPercentage = 50 - (score * 50); // Convert [-1,1] to [100,0]
         double rightPercentage = 100 - leftPercentage;
         
-        return new AnalyzerResult(leftPercentage, rightPercentage, explanation);
+        // Ensure percentages are within valid range
+        leftPercentage = Math.max(0, Math.min(100, leftPercentage));
+        rightPercentage = Math.max(0, Math.min(100, rightPercentage));
+        
+        String message = String.format("Political bias analysis score: %.2f (negative=left, positive=right)", score);
+        
+        System.err.println("Calculated left: " + leftPercentage + ", right: " + rightPercentage);
+        
+        return new AnalyzerResult(leftPercentage, rightPercentage, message, explanation);
     }
 
 
@@ -108,8 +119,8 @@ public class AnalyzerResult {
         return String.format(
             "{\"left\": %.1f, \"right\": %.1f, \"message\": \"%s\", \"explanation\": \"%s\"}", 
             left, right, 
-            escapeJsonString(message), 
-            escapeJsonString(message)  // Include both fields with same content
+            escapeJsonString(message),
+            escapeJsonString(explanation) // Use the explanation field
         );
     }
 
@@ -127,5 +138,9 @@ public class AnalyzerResult {
 
     public String getMessage() {
         return this.message;
+    }
+    // Add getter
+    public String getExplanation() {
+        return this.explanation;
     }
 }

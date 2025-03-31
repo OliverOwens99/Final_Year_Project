@@ -22,9 +22,13 @@ public class TransformerAnalyzer {
     "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). " +
     "LEFT bias indicators: progressive values, social equality, government programs, regulation, wealth redistribution. " +
     "RIGHT bias indicators: traditional values, individual liberty, free markets, limited government, fiscal conservatism. " +
-    "Return ONLY a valid JSON object with this exact structure: " +
-    "{\"score\": [number between -1 and 1], \"explanation\": \"[detailed political bias analysis explaining WHY the text leans left or right]\"} " +
-    "Your explanation MUST focus on political bias indicators, not comment on the events themselves.";
+    "Format your response as a JSON object with this EXACT structure: " +
+    "{\"score\": X, \"explanation\": \"Y\"} " +
+    "where X is a number between -1 and 1, and Y is your detailed political bias analysis. " +
+    "Your explanation must focus on political bias indicators, not comment on the events themselves. " +
+    "DO NOT include any text before or after the JSON object. " +
+    "DO NOT use placeholders. " +
+    "DO NOT repeat these instructions in your response.";
 
     static {
         // Initialize model registry - one model per provider
@@ -119,7 +123,7 @@ public class TransformerAnalyzer {
     public static AnalyzerResult analyzeText(String text) {
         int maxRetries = 2;
         int retryDelay = 3000; // Start with 3 seconds
-
+        text = text.replaceAll("\\p{C}", "");
         
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
@@ -143,36 +147,10 @@ public class TransformerAnalyzer {
                 String explanation = result.getString("explanation");
 
 
-                
-                // Check if explanation is about political bias
-                boolean isPoliticalAnalysis = 
-                    explanation.toLowerCase().contains("left") || 
-                    explanation.toLowerCase().contains("right") || 
-                    explanation.toLowerCase().contains("liberal") || 
-                    explanation.toLowerCase().contains("conservative") ||
-                    explanation.toLowerCase().contains("bias") ||
-                    explanation.toLowerCase().contains("politic");
-                    
-                if (!isPoliticalAnalysis) {
-                    // Replace with better explanation
-                    if (score < -0.3) {
-                        explanation = "The text leans significantly left (score: " + score + 
-                                     "). This indicates presence of left-wing political bias markers.";
-                    } else if (score < 0) {
-                        explanation = "The text leans slightly left (score: " + score + 
-                                     "). Some left-leaning political bias indicators are present.";
-                    } else if (score > 0.3) {
-                        explanation = "The text leans significantly right (score: " + score + 
-                                     "). This indicates presence of right-wing political bias markers.";
-                    } else if (score > 0) {
-                        explanation = "The text leans slightly right (score: " + score + 
-                                     "). Some right-leaning political bias indicators are present.";
-                    } else {
-                        explanation = "The text appears politically neutral (score: " + score + 
-                                     "). No significant political bias detected.";
-                    }
-                    result.put("explanation", explanation);
-                }
+                // Add this debug line:
+                System.err.println("DEBUG - Model result: score=" + score + ", explanation=" + explanation);
+
+
                 
     
                 // Use the factory method for consistency
@@ -216,64 +194,84 @@ public class TransformerAnalyzer {
     private static JSONObject parseResponse(String response) {
         try {
             System.err.println("Raw response: " + response);
-    
-            // Find the first { and last } to extract just the JSON part
-            int startIdx = response.indexOf('{');
-            int endIdx = response.lastIndexOf('}') + 1;
-    
-            if (startIdx >= 0 && endIdx > startIdx) {
-                String jsonStr = response.substring(startIdx, endIdx);
-                JSONObject parsed = new JSONObject(jsonStr);
-    
-                // Check if score is an array or a direct number
-                double score;
+            
+            // Look for the last JSON object in the string - this is likely the model's actual answer
+            int lastOpenBrace = response.lastIndexOf('{');
+            int lastCloseBrace = response.lastIndexOf('}');
+            
+            if (lastOpenBrace >= 0 && lastCloseBrace > lastOpenBrace) {
+                // Extract just the last JSON object
+                String jsonStr = response.substring(lastOpenBrace, lastCloseBrace + 1);
+                System.err.println("Extracted final JSON: " + jsonStr);
+                
                 try {
-                    // Try getting as direct number
-                    score = parsed.getDouble("score");
-                } catch (Exception e) {
-                    // If that fails, try getting as array
-                    try {
-                        score = parsed.getJSONArray("score").getDouble(0);
-                        // Replace the array with a direct value
-                        parsed.put("score", score);
-                    } catch (Exception e2) {
-                        // If both methods fail, default to neutral
-                        score = 0.0;
-                        parsed.put("score", score);
-                    }
-                }
-    
-                // Validate score is within expected range
-                if (score < -1 || score > 1) {
-                    score = Math.max(-1, Math.min(1, score));
-                    parsed.put("score", score);
-                }
-    
-                // Check if explanation exists and has valid content
-                if (!parsed.has("explanation") || 
-                    parsed.getString("explanation").trim().isEmpty() ||
-                    parsed.getString("explanation").contains("[") && parsed.getString("explanation").contains("]")) {
+                    // Try to parse as direct JSON first
+                    JSONObject parsed = new JSONObject(jsonStr);
                     
-                    // Generate a default explanation based on the score
-                    String defaultExplanation;
-                    if (score < -0.3) {
-                        defaultExplanation = "The text leans significantly left (score: " + score + ")";
-                    } else if (score < 0) {
-                        defaultExplanation = "The text leans slightly left (score: " + score + ")";
-                    } else if (score > 0.3) {
-                        defaultExplanation = "The text shows significant right-leaning political bias (score: " + score + ")";
-                    } else if (score > 0) {
-                        defaultExplanation = "The text shows slight right-leaning political bias (score: " + score + ")";
-                    } else {
-                        defaultExplanation = "The text appears politically neutral (score: " + score + ")";
+                    // Check if score is present and valid
+                    double score;
+                    try {
+                        score = parsed.getDouble("score");
+                        System.err.println("Successfully parsed score from final JSON: " + score);
+                        
+                        // Validate score is within range
+                        if (score < -1 || score > 1) {
+                            double oldScore = score;
+                            score = Math.max(-1, Math.min(1, score));
+                            parsed.put("score", score);
+                            System.err.println("Score out of range, clamped " + oldScore + " to " + score);
+                        }
+                        
+                        // Make sure explanation exists
+                        if (!parsed.has("explanation") || parsed.getString("explanation").trim().isEmpty()) {
+                            String defaultExplanation = "Score: " + score + 
+                                (score < 0 ? " (left-leaning)" : 
+                                 score > 0 ? " (right-leaning)" : " (neutral)");
+                            
+                            parsed.put("explanation", defaultExplanation);
+                        }
+                        
+                        // This looks like a valid model response JSON, return it
+                        System.err.println("Final score: " + score);
+                        System.err.println("Final explanation: " + parsed.getString("explanation"));
+                        return parsed;
+                    } catch (Exception e) {
+                        System.err.println("Last JSON object didn't have a valid score, trying regex extraction");
+                        // Fall through to regex extraction
                     }
-                    parsed.put("explanation", defaultExplanation);
+                } catch (Exception e) {
+                    System.err.println("Couldn't parse last JSON object, trying regex extraction");
+                    // Fall through to regex extraction
                 }
-    
+            }
+            
+            // If direct JSON parsing failed, try regex
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\{\"score\":\\s*(-?\\d+(\\.\\d+)?),\\s*\"explanation\":\\s*\"([^\"]*)\"\\}");
+            java.util.regex.Matcher matcher = pattern.matcher(response);
+            
+            // Find the LAST match, not first
+            int lastMatchStart = -1;
+            double lastScore = 0.0;
+            String lastExplanation = "";
+            
+            while (matcher.find()) {
+                lastMatchStart = matcher.start();
+                lastScore = Double.parseDouble(matcher.group(1));
+                lastExplanation = matcher.group(3);
+            }
+            
+            if (lastMatchStart >= 0) {
+                System.err.println("Regex extracted final score: " + lastScore);
+                System.err.println("Regex extracted final explanation: " + lastExplanation);
+                
+                JSONObject parsed = new JSONObject();
+                parsed.put("score", lastScore);
+                parsed.put("explanation", lastExplanation);
                 return parsed;
             }
-    
-            // No JSON found, create default
+            
+            // If all extraction methods failed
+            System.err.println("All JSON extraction methods failed");
             JSONObject defaultJson = new JSONObject();
             defaultJson.put("score", 0.0);
             defaultJson.put("explanation", "Model did not return valid JSON format");
@@ -286,7 +284,6 @@ public class TransformerAnalyzer {
             return defaultJson;
         }
     }
-
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             // Check for command line args to set model

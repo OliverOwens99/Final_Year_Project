@@ -216,7 +216,7 @@ def analyze():
     data = request.json
     url = data.get('url')
     analyzer_type = data.get('analyzer_type', 'lexicon')
-    model = data.get('model', 'gpt-3.5-turbo')
+    model = data.get('model')
     
     try:
         # Extract article text from the URL
@@ -224,6 +224,8 @@ def analyze():
         
         # Analyze the text
         result = run_java_analyzer(analyzer_type, article_text, model)
+        # for debugging purposes, log the result before sending it to the frontend
+        logging.info(f"Analysis result before sending to frontend: {json.dumps(result)}")
         
         return jsonify({
             'results': result,
@@ -283,9 +285,41 @@ def run_java_analyzer(analyzer_type, text, model=None):
         if result.returncode != 0:
             raise Exception(f"Java program error ({result.returncode}): {result.stderr}")
         
-        # Try to parse the JSON result
+        # Log the raw stdout for debugging
+        logging.info(f"Raw Java output: {result.stdout}")
+        
         try:
-            return json.loads(result.stdout)
+            # Parse the JSON response
+            parsed_result = json.loads(result.stdout)
+            
+            # Ensure all required fields are present
+            if "left" not in parsed_result:
+                logging.warning("Missing 'left' field in analyzer output")
+                parsed_result["left"] = 50.0
+                
+            if "right" not in parsed_result:
+                logging.warning("Missing 'right' field in analyzer output")
+                parsed_result["right"] = 50.0
+                
+            # Ensure values are proper floats
+            parsed_result["left"] = float(parsed_result["left"])
+            parsed_result["right"] = float(parsed_result["right"])
+            
+            # Make sure both message and explanation exist
+            if "message" not in parsed_result:
+                parsed_result["message"] = "Analysis complete"
+                
+            if "explanation" not in parsed_result:
+                if "message" in parsed_result:
+                    parsed_result["explanation"] = parsed_result["message"]
+                else:
+                    parsed_result["explanation"] = "No explanation provided"
+            
+            # Log the processed result for debugging
+            logging.info(f"Processed JSON result: {json.dumps(parsed_result)}")
+            
+            return parsed_result
+            
         except json.JSONDecodeError:
             logging.error(f"Invalid JSON: '{result.stdout}'")
             raise Exception("Analyzer returned invalid JSON")
