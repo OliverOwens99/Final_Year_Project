@@ -14,7 +14,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - add the ai java programmes maybe some more research into how i might use them and api keys 
 - test and troubleshoot user login 
 - testing and some more wiring up of processes there needs to be some more work invovled it making sure this is all running and working
-- need to get the transformer model properly working end to end 
+- need to get the transformer model properly working end to end complete 
 
 ## COMPLETED
 - Better understanding of the make up of AIs and the fact you can uses schemas and builders to guide LLMs to  structure your data accordingly using few-shot prompting or embedding model-based classification 
@@ -30,6 +30,7 @@ and to provide a view for tracking learning those softer skills github issue wil
 - compiled built and cleaned project and finally resolved all the conflicts
 - implemented a factory pattern that allows me to add some model selections to the front end to see difference 
 - lexicon an and pretrained model both working
+- transformer models working when I get use of the hugging face api , also added some graceful error handling and prompt bug fixing
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
