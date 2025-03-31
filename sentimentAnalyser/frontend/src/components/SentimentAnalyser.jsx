@@ -133,7 +133,7 @@ function SentimentAnalyzer() {
             cursor: loading ? 'not-allowed' : 'pointer'
           }}
         >
-          {loading ? 'Analyzing...' : 'Analyze'}
+          {loading ? 'Analysing...' : 'Analyse'}
         </button>
       </div>
 

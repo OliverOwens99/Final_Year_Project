@@ -50,7 +50,7 @@ public class AnalyzerResult {
         double score = calculateWeightedScore(politicalScore, sentimentScore, politicalMatches,
                 sentimentMatches);
 
-        double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 25)));
+        double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
         double rightPercentage = 100 - leftPercentage;
 
         String message = String.format(
@@ -73,7 +73,7 @@ public class AnalyzerResult {
     // For BertPoliticalAnalyser's bias score approach
     public static AnalyzerResult createBertResult(double bias) {
         // Convert bias score to percentages (consistent with your current implementation)
-        double leftPercentage = Math.max(0, Math.min(100, 50 - (bias * 25)));
+        double leftPercentage = Math.max(0, Math.min(100, 50 - (bias * 50)));
         double rightPercentage = 100 - leftPercentage;
         
         String message = String.format(

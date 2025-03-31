@@ -20,6 +20,7 @@ public class TransformerAnalyzer {
     private static final String SYSTEM_PROMPT =
     "You are an AI specialized in political bias analysis. " +
     "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). " +
+    "IMPORTANT: Positive scores indicate right-leaning bias, negative scores indicate left-leaning bias." +
     "LEFT bias indicators: progressive values, social equality, government programs, regulation, wealth redistribution. " +
     "RIGHT bias indicators: traditional values, individual liberty, free markets, limited government, fiscal conservatism. " +
     "Format your response as a JSON object with this EXACT structure: " +
