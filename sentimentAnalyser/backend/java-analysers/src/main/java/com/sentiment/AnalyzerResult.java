@@ -55,7 +55,7 @@ public class AnalyzerResult {
         return 0;
     }
 
-    // Add this method to AnalyzerResult.java
+    // For BertPoliticalAnalyser's bias score approach
     public static AnalyzerResult createBertResult(double bias) {
         // Convert bias score to percentages (consistent with your current implementation)
         double leftPercentage = Math.max(0, Math.min(100, 50 - (bias * 25)));
@@ -76,11 +76,28 @@ public class AnalyzerResult {
 
     // Add to AnalyzerResult.java
     public static AnalyzerResult createTransformerResult(double score, String explanation) {
-        // Use 50 as multiplier for transformer results since their scale is [-1,1]
+        // Detect placeholder text in the explanation
+        if (explanation.contains("[") && explanation.contains("]") || 
+            explanation.trim().isEmpty() ||
+            explanation.equals("null")) {
+            // Replace with a more useful message based on score
+            if (score < -0.3) {
+                explanation = "The text shows significant left-leaning political bias (score: " + score + ")";
+            } else if (score < 0) {
+                explanation = "The text shows slight left-leaning political bias (score: " + score + ")";
+            } else if (score > 0.3) {
+                explanation = "The text shows significant right-leaning political bias (score: " + score + ")";
+            } else if (score > 0) {
+                explanation = "The text shows slight right-leaning political bias (score: " + score + ")";
+            } else {
+                explanation = "The text appears politically neutral (score: " + score + ")";
+            }
+        }
+    
+        // Calculate percentages
         double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
         double rightPercentage = 100 - leftPercentage;
         
-        // Use the provided explanation directly
         return new AnalyzerResult(leftPercentage, rightPercentage, explanation);
     }
 
@@ -88,9 +105,12 @@ public class AnalyzerResult {
 
     @Override
     public String toString() {
-        // Use the escapeJsonString method that's already defined but not used
-        return String.format("{\"left\": %.1f, \"right\": %.1f, \"message\": \"%s\"}", left, right,
-                escapeJsonString(message));
+        return String.format(
+            "{\"left\": %.1f, \"right\": %.1f, \"message\": \"%s\", \"explanation\": \"%s\"}", 
+            left, right, 
+            escapeJsonString(message), 
+            escapeJsonString(message)  // Include both fields with same content
+        );
     }
 
     

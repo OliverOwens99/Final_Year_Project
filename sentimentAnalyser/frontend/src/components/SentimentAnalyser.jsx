@@ -22,6 +22,7 @@ function SentimentAnalyzer() {
         });
 
         const data = await response.json();
+        console.log("Raw data from backend:", data);
         if (!response.ok || !data.authenticated) {
           navigate('/login');
         }
@@ -142,27 +143,33 @@ function SentimentAnalyzer() {
       {results && (
         <div style={{ marginTop: '20px' }}>
           <h2>Analysis Results</h2>
-          {(results.explanation || results.message) && (
+          {results.message && (
+            <div style={{ marginBottom: '20px' }}>
+              <h3>Analysis:</h3>
+              <p>{results.message}</p>
+            </div>
+          )}
+          {results.explanation && (
             <div style={{ marginBottom: '20px' }}>
               <h3>Explanation:</h3>
-              <p>{results.explanation || results.message}</p>
+              <p>{results.explanation}</p>
             </div>
           )}
           <PieChart width={400} height={400}>
             <Pie
               data={[
-                { name: 'Left', value: parseFloat(results.left || results.leftPercentage || 0) },
-                { name: 'Right', value: parseFloat(results.right || results.rightPercentage || 0) }
+                { name: 'Left', value: parseFloat(results.left) || 50 },
+                { name: 'Right', value: parseFloat(results.right) || 50 },
               ]}
+              dataKey="value"
               cx="50%"
               cy="50%"
-              labelLine={false}
-              label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
-              outerRadius={80}
+              outerRadius={100}
               fill="#8884d8"
+              label
             >
-              <Cell fill="#0088FE" /> {/* Left - Blue */}
-              <Cell fill="#FF8042" /> {/* Right - Orange */}
+            <Cell key="left" fill="#0000FF" /> {/* blue for Left */}
+            <Cell key="right" fill="#FF0000" /> {/* red for Right */}
             </Pie>
             <Legend />
           </PieChart>
