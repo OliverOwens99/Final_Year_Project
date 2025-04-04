@@ -18,36 +18,45 @@ public class TransformerAnalyzer {
     private static ChatLanguageModel model;
 
     private static final String SYSTEM_PROMPT =
-    "You are an AI specialized in political bias analysis. " +
-    "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). " +
-    "IMPORTANT: Positive scores indicate right-leaning bias, negative scores indicate left-leaning bias." +
-    "LEFT bias indicators: progressive values, social equality, government programs, regulation, wealth redistribution. " +
-    "RIGHT bias indicators: traditional values, individual liberty, free markets, limited government, fiscal conservatism. " +
-    "Format your response as a JSON object with this EXACT structure: " +
-    "{\"score\": X, \"explanation\": \"Y\"} " +
-    "where X is a number between -1 and 1, and Y is your detailed political bias analysis. " +
-    "Your explanation must focus on political bias indicators, not comment on the events themselves. " +
-    "DO NOT include any text before or after the JSON object. " +
-    "DO NOT use placeholders. " +
-    "DO NOT repeat these instructions in your response.";
+            "You are an AI specialized in political bias analysis. "
+                    + "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). "
+                    + "IMPORTANT: Positive scores indicate right-leaning bias, negative scores indicate left-leaning bias."
+                    + "LEFT bias indicators: progressive values, social equality, government programs, regulation, wealth redistribution. "
+                    + "RIGHT bias indicators: traditional values, individual liberty, free markets, limited government, fiscal conservatism. "
+                    + "Format your response as a JSON object with this EXACT structure: "
+                    + "{\"score\": X, \"explanation\": \"Y\"} "
+                    + "where X is a number between -1 and 1, and Y is your detailed political bias analysis. "
+                    + "Your explanation must focus on political bias indicators, not comment on the events themselves. "
+                    + "DO NOT include any text before or after the JSON object. "
+                    + "DO NOT use placeholders. "
+                    + "DO NOT repeat these instructions in your response.";
 
     static {
         // Initialize model registry - one model per provider
-        MODEL_REGISTRY.put("phi-2",
+        // Replace these problematic models
+        MODEL_REGISTRY.put("mistral-7b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("microsoft/phi-2") // Excellent 2.7B parameter model
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(1000)).waitForModel(true).build());
+                        .modelId("mistralai/Mistral-7B-Instruct-v0.2") // This one works
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                        .waitForModel(false).build());
 
         MODEL_REGISTRY.put("gemma-2b-it",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("google/gemma-2b-it") // Google's 2B instruction-tuned model
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(1000)).waitForModel(true).build());
+                        .modelId("google/gemma-2b-it") // This one works
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(60))
+                        .waitForModel(false).build());
 
-        MODEL_REGISTRY.put("qwen-1.8b",
+        MODEL_REGISTRY.put("llama-2-7b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("Qwen/Qwen1.5-1.8B-Chat") // Strong 1.8B chat model
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(1000)).waitForModel(true).build());
+                        .modelId("meta-llama/Llama-2-7b-chat-hf") // Replace SOLAR with this
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                        .waitForModel(false).build());
 
+        MODEL_REGISTRY.put("deepseek-chat",
+                () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                        .modelId("deepseek-ai/deepseek-llm-7b-chat") // Corrected model ID
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                        .waitForModel(false).build());
 
         // Initialize the model based on available API keys
         String openaiKey = System.getenv("OPENAI_API_KEY");
@@ -89,9 +98,9 @@ public class TransformerAnalyzer {
         try {
             // Since we don't want to use OpenAI models at all
             if (hfKey != null) {
-                // Use one of your defined models
-                model = MODEL_REGISTRY.get("phi-2").get();
-                System.err.println("Using default model: phi-2");
+                // Change default from phi-2 to gemma-2b-it
+                model = MODEL_REGISTRY.get("gemma-2b-it").get();
+                System.err.println("Using default model: gemma-2b-it");
             } else {
                 model = null;
                 System.err.println("No HF_API_KEY available, model will not function");
@@ -125,23 +134,24 @@ public class TransformerAnalyzer {
         int maxRetries = 2;
         int retryDelay = 3000; // Start with 3 seconds
         text = text.replaceAll("\\p{C}", "");
-        
+
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 if (model == null) {
                     throw new IllegalStateException(
                             "Model not initialized. Check API key environment variables.");
                 }
-    
+
                 // Clean text before analysis
                 text = AnalyzerResult.cleanText(text);
-    
+
                 // Create prompt with system and user messages
-                var response = model.generate(new SystemMessage(SYSTEM_PROMPT), new UserMessage(text));
-    
+                var response =
+                        model.generate(new SystemMessage(SYSTEM_PROMPT), new UserMessage(text));
+
                 // Extract the content from the response
                 String content = response.content().text();
-    
+
                 // Parse score from response
                 JSONObject result = parseResponse(content);
                 double score = result.getDouble("score");
@@ -149,95 +159,99 @@ public class TransformerAnalyzer {
 
 
                 // Add this debug line:
-                System.err.println("DEBUG - Model result: score=" + score + ", explanation=" + explanation);
+                System.err.println(
+                        "DEBUG - Model result: score=" + score + ", explanation=" + explanation);
 
 
-                
-    
+
                 // Use the factory method for consistency
                 return AnalyzerResult.createTransformerResult(score, explanation);
-                
+
             } catch (Exception e) {
                 String errorMsg = e.getMessage();
-                boolean is503Error = errorMsg != null && 
-                    (errorMsg.contains("503") || errorMsg.contains("Service Unavailable"));
-                    
+                boolean is503Error = errorMsg != null
+                        && (errorMsg.contains("503") || errorMsg.contains("Service Unavailable"));
+
                 // If it's a 503 and not the last attempt, retry
                 if (is503Error && attempt < maxRetries) {
-                    System.err.println("Service unavailable (503). Retry attempt " + (attempt+1) + 
-                                       " of " + maxRetries + " in " + (retryDelay/1000) + " seconds...");
+                    System.err.println("Service unavailable (503). Retry attempt " + (attempt + 1)
+                            + " of " + maxRetries + " in " + (retryDelay / 1000) + " seconds...");
                     try {
                         Thread.sleep(retryDelay);
-                        retryDelay *= 2;  // Exponential backoff
+                        retryDelay *= 2; // Exponential backoff
                         continue;
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         break;
                     }
                 }
-                
+
                 System.err.println("Analysis error: " + e.getMessage());
-                
+
                 if (is503Error) {
-                    return new AnalyzerResult(50, 50, 
-                        "Hugging Face API is currently experiencing high demand (503 error). " + 
-                        "Please try again later or use another analyser type.");
+                    return new AnalyzerResult(50, 50,
+                            "Hugging Face API is currently experiencing high demand (503 error). "
+                                    + "Please try again later or use another analyser type.");
                 } else {
                     return new AnalyzerResult(50, 50, "Error analysing text: " + e.getMessage());
                 }
             }
         }
-        
-        return new AnalyzerResult(50, 50, 
-            "Hugging Face API is unavailable after multiple retry attempts. Please try again later.");
+
+        return new AnalyzerResult(50, 50,
+                "Hugging Face API is unavailable after multiple retry attempts. Please try again later.");
     }
 
     private static JSONObject parseResponse(String response) {
         try {
             System.err.println("Raw response: " + response);
-            
-            // Look for the last JSON object in the string - this is likely the model's actual answer
+
+            // Look for the last JSON object in the string - this is likely the model's actual
+            // answer
             int lastOpenBrace = response.lastIndexOf('{');
             int lastCloseBrace = response.lastIndexOf('}');
-            
+
             if (lastOpenBrace >= 0 && lastCloseBrace > lastOpenBrace) {
                 // Extract just the last JSON object
                 String jsonStr = response.substring(lastOpenBrace, lastCloseBrace + 1);
                 System.err.println("Extracted final JSON: " + jsonStr);
-                
+
                 try {
                     // Try to parse as direct JSON first
                     JSONObject parsed = new JSONObject(jsonStr);
-                    
+
                     // Check if score is present and valid
                     double score;
                     try {
                         score = parsed.getDouble("score");
                         System.err.println("Successfully parsed score from final JSON: " + score);
-                        
+
                         // Validate score is within range
                         if (score < -1 || score > 1) {
                             double oldScore = score;
                             score = Math.max(-1, Math.min(1, score));
                             parsed.put("score", score);
-                            System.err.println("Score out of range, clamped " + oldScore + " to " + score);
+                            System.err.println(
+                                    "Score out of range, clamped " + oldScore + " to " + score);
                         }
-                        
+
                         // Make sure explanation exists
-                        if (!parsed.has("explanation") || parsed.getString("explanation").trim().isEmpty()) {
-                            String defaultExplanation = "Score: " + score + 
-                                (score < 0 ? " (left-leaning)" : 
-                                 score > 0 ? " (right-leaning)" : " (neutral)");
-                            
+                        if (!parsed.has("explanation")
+                                || parsed.getString("explanation").trim().isEmpty()) {
+                            String defaultExplanation =
+                                    "Score: " + score + (score < 0 ? " (left-leaning)"
+                                            : score > 0 ? " (right-leaning)" : " (neutral)");
+
                             parsed.put("explanation", defaultExplanation);
                         }
-                        
+
                         // This looks like a valid model response JSON, return it
                         System.err.println("Final score: " + score);
                         System.err.println("Final explanation: " + parsed.getString("explanation"));
                         return parsed;
                     } catch (Exception e) {
-                        System.err.println("Last JSON object didn't have a valid score, trying regex extraction");
+                        System.err.println(
+                                "Last JSON object didn't have a valid score, trying regex extraction");
                         // Fall through to regex extraction
                     }
                 } catch (Exception e) {
@@ -245,32 +259,33 @@ public class TransformerAnalyzer {
                     // Fall through to regex extraction
                 }
             }
-            
+
             // If direct JSON parsing failed, try regex
-            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\{\"score\":\\s*(-?\\d+(\\.\\d+)?),\\s*\"explanation\":\\s*\"([^\"]*)\"\\}");
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                    "\\{\"score\":\\s*(-?\\d+(\\.\\d+)?),\\s*\"explanation\":\\s*\"([^\"]*)\"\\}");
             java.util.regex.Matcher matcher = pattern.matcher(response);
-            
+
             // Find the LAST match, not first
             int lastMatchStart = -1;
             double lastScore = 0.0;
             String lastExplanation = "";
-            
+
             while (matcher.find()) {
                 lastMatchStart = matcher.start();
                 lastScore = Double.parseDouble(matcher.group(1));
                 lastExplanation = matcher.group(3);
             }
-            
+
             if (lastMatchStart >= 0) {
                 System.err.println("Regex extracted final score: " + lastScore);
                 System.err.println("Regex extracted final explanation: " + lastExplanation);
-                
+
                 JSONObject parsed = new JSONObject();
                 parsed.put("score", lastScore);
                 parsed.put("explanation", lastExplanation);
                 return parsed;
             }
-            
+
             // If all extraction methods failed
             System.err.println("All JSON extraction methods failed");
             JSONObject defaultJson = new JSONObject();
@@ -285,6 +300,7 @@ public class TransformerAnalyzer {
             return defaultJson;
         }
     }
+
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             // Check for command line args to set model

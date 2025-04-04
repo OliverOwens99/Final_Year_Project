@@ -21,7 +21,7 @@
             <artifactId>onnxruntime</artifactId>
             <version>1.15.1</version>
         </dependency>
-        
+
         <!-- LangChain4j for TransformerAnalyzer -->
         <dependency>
             <groupId>dev.langchain4j</groupId>

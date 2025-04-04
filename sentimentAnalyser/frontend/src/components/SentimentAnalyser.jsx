@@ -101,7 +101,7 @@ function SentimentAnalyzer() {
           onChange={(e) => setAnalyzer(e.target.value)}
           style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
         >
-          <option value="llm">LLM Analysis</option>
+          <option value="llm">BERT Pre-trained Political Analyser</option>
           <option value="transformer">Transformer Analysis</option>
           <option value="lexicon">Lexicon Analysis</option>
         </select>
@@ -113,10 +113,11 @@ function SentimentAnalyzer() {
             onChange={(e) => setModel(e.target.value)}
             style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
           >
-            {/* HuggingFace Models - match exactly what's in TransformerAnalyzer.java */}
-            <option value="phi-2">Microsoft Phi-2 (2.7B parameters)</option>
+            {/* Updated model options that actually work */}
+            <option value="mistral-7b">Mistral 7B Instruct</option>
             <option value="gemma-2b-it">Google Gemma 2B-IT</option>
-            <option value="qwen-1.8b">Qwen 1.8B Chat</option>
+            <option value="llama-2-7b">Meta Llama 2 7B Chat</option>
+            <option value="deepseek-chat">DeepSeek 7B Chat</option>
           </select>
         )}
 
@@ -168,8 +169,8 @@ function SentimentAnalyzer() {
               fill="#8884d8"
               label
             >
-            <Cell key="left" fill="#0000FF" /> {/* blue for Left */}
-            <Cell key="right" fill="#FF0000" /> {/* red for Right */}
+              <Cell key="left" fill="#0000FF" /> {/* blue for Left */}
+              <Cell key="right" fill="#FF0000" /> {/* red for Right */}
             </Pie>
             <Legend />
           </PieChart>
