@@ -13,30 +13,29 @@ import dev.langchain4j.model.huggingface.HuggingFaceChatModel;
 import org.json.JSONObject;
 
 /**
- * Analyses political bias in text using transformer-based language models.
- * This class provides methods to evaluate political leaning in content through
- * multiple transformer models from Hugging Face. It assigns a political bias score
- * between -1 (extreme left) and 1 (extreme right).
+ * Analyses political bias in text using transformer-based language models. This class provides
+ * methods to evaluate political leaning in content through multiple transformer models from Hugging
+ * Face. It assigns a political bias score between -1 (extreme left) and 1 (extreme right).
  * 
- * The analyser incorporates retry mechanisms for handling temporary service
- * unavailability and provides detailed explanations of detected bias.
+ * The analyser incorporates retry mechanisms for handling temporary service unavailability and
+ * provides detailed explanations of detected bias.
  */
 public class TransformerAnalyzer {
     /**
-     * Registry that maps model names to supplier functions that create model instances.
-     * Allows dynamic selection and instantiation of different language models.
+     * Registry that maps model names to supplier functions that create model instances. Allows
+     * dynamic selection and instantiation of different language models.
      */
     private static final Map<String, Supplier<ChatLanguageModel>> MODEL_REGISTRY = new HashMap<>();
-    
+
     /**
      * The currently active language model used for text analysis.
      */
     private static ChatLanguageModel model;
 
     /**
-     * System prompt that instructs the model how to analyse political bias.
-     * Provides guidelines on what constitutes left vs. right bias and specifies
-     * the expected response format with score and explanation.
+     * System prompt that instructs the model how to analyse political bias. Provides guidelines on
+     * what constitutes left vs. right bias and specifies the expected response format with score
+     * and explanation.
      */
     private static final String SYSTEM_PROMPT =
             "You are an AI specialized in political bias analysis. "
@@ -54,12 +53,12 @@ public class TransformerAnalyzer {
 
     static {
         // Initialize model registry - one model per provider
-        
+
         MODEL_REGISTRY.put("mistral-7b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                         .modelId("mistralai/Mistral-7B-Instruct-v0.2") // This one works
                         .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
-                        .waitForModel(false).build());
+                        .waitForModel(true).build());
 
         MODEL_REGISTRY.put("gemma-2b-it",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
@@ -75,9 +74,11 @@ public class TransformerAnalyzer {
 
         MODEL_REGISTRY.put("deepseek-chat",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                        .modelId("deepseek-ai/deepseek-llm-7b-chat") // Corrected model ID
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                        .modelId("deepseek-ai/deepseek-coder-1.3b-instruct") // Much smaller model
+                                                                             // (1.3B)
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(90))
                         .waitForModel(false).build());
+
 
         // Initialize the model based on available API keys
         String openaiKey = System.getenv("OPENAI_API_KEY");
@@ -113,8 +114,8 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Selects a default model based on available API keys.
-     * When Hugging Face API key is available, uses gemma-2b-it as the default model.
+     * Selects a default model based on available API keys. When Hugging Face API key is available,
+     * uses gemma-2b-it as the default model.
      * 
      * @param openaiKey The OpenAI API key (not used but kept for method signature)
      * @param hfKey The Hugging Face API key
@@ -137,11 +138,11 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Sets the active model by name. Attempts to initialise the specified model
-     * from the registry.
+     * Sets the active model by name. Attempts to initialise the specified model from the registry.
      * 
      * @param modelName The name of the model to use
-     * @return true if successfully initialised the model, false if model not found or initialisation failed
+     * @return true if successfully initialised the model, false if model not found or
+     *         initialisation failed
      */
     public static boolean setModel(String modelName) {
         if (MODEL_REGISTRY.containsKey(modelName)) {
@@ -157,15 +158,15 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Analyses text for political bias using the currently active language model.
-     * Implements retry logic with exponential backoff for handling temporary 
-     * service unavailability.
+     * Analyses text for political bias using the currently active language model. Implements retry
+     * logic with exponential backoff for handling temporary service unavailability.
      * 
      * @param text The text to analyse for political bias
-     * @return An AnalyzerResult containing the bias analysis (left/right percentages and explanation)
+     * @return An AnalyzerResult containing the bias analysis (left/right percentages and
+     *         explanation)
      */
     public static AnalyzerResult analyzeText(String text) {
-        int maxRetries = 2;
+        int maxRetries = 4;
         int retryDelay = 3000; // Start with 3 seconds
         text = text.replaceAll("\\p{C}", "");
 
@@ -208,11 +209,13 @@ public class TransformerAnalyzer {
 
                 // If it's a 503 and not the last attempt, retry
                 if (is503Error && attempt < maxRetries) {
+                    // added jitter to try and get some more consistent results
+                    int jitter = (int)(Math.random() * 1000);
+                    int delay = retryDelay * (1 << attempt) + jitter;
                     System.err.println("Service unavailable (503). Retry attempt " + (attempt + 1)
-                            + " of " + maxRetries + " in " + (retryDelay / 1000) + " seconds...");
+                            + " of " + maxRetries + " in " + (delay / 1000) + " seconds...");
                     try {
-                        Thread.sleep(retryDelay);
-                        retryDelay *= 2; // Exponential backoff
+                        Thread.sleep(delay);
                         continue;
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -237,10 +240,9 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Parses the JSON response from the language model.
-     * Uses multiple strategies to extract the score and explanation:
-     * 1. Direct JSON parsing of the last JSON object in the response
-     * 2. Regular expression extraction as a fallback
+     * Parses the JSON response from the language model. Uses multiple strategies to extract the
+     * score and explanation: 1. Direct JSON parsing of the last JSON object in the response 2.
+     * Regular expression extraction as a fallback
      * 
      * @param response The raw text response from the language model
      * @return A JSONObject containing the score and explanation
@@ -345,12 +347,12 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Command-line entry point for the analyser.
-     * Accepts an optional model specification via command line arguments.
-     * Reads text from standard input, analyses it, and outputs the result as JSON.
+     * Command-line entry point for the analyser. Accepts an optional model specification via
+     * command line arguments. Reads text from standard input, analyses it, and outputs the result
+     * as JSON.
      * 
-     * @param args Command line arguments
-     *        --model [model-name] to select a specific model from the registry
+     * @param args Command line arguments --model [model-name] to select a specific model from the
+     *        registry
      */
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {

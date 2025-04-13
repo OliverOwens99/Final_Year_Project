@@ -31,6 +31,8 @@ and to provide a view for tracking learning those softer skills github issue wil
 - implemented a factory pattern that allows me to add some model selections to the front end to see difference 
 - lexicon an and pretrained model both working
 - transformer models working when I get use of the hugging face api , also added some graceful error handling and prompt bug fixing
+- added alot of front end look and feel added history page to front end app now tracks users searches 
+- added some jitter to get around problem of getting time in the hugging face api
 ## REFERENCES
 - https://docs.langchain4j.dev/
 - https://flask.palletsprojects.com/en/3.0.x/
