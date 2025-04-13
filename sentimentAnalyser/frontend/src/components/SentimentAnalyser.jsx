@@ -140,7 +140,7 @@ function SentimentAnalyzer() {
               disabled={loading}
               className={loading ? "btn-secondary" : "btn-primary"}
             >
-              {loading ? 'Analyzing...' : 'Analyze Article'}
+              {loading ? 'Analysing...' : 'Analyse Article'}
             </button>
           </div>
         </div>
