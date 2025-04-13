@@ -12,11 +12,32 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.huggingface.HuggingFaceChatModel;
 import org.json.JSONObject;
 
+/**
+ * Analyses political bias in text using transformer-based language models.
+ * This class provides methods to evaluate political leaning in content through
+ * multiple transformer models from Hugging Face. It assigns a political bias score
+ * between -1 (extreme left) and 1 (extreme right).
+ * 
+ * The analyser incorporates retry mechanisms for handling temporary service
+ * unavailability and provides detailed explanations of detected bias.
+ */
 public class TransformerAnalyzer {
-    // Model factory - allows easily swapping between different models
+    /**
+     * Registry that maps model names to supplier functions that create model instances.
+     * Allows dynamic selection and instantiation of different language models.
+     */
     private static final Map<String, Supplier<ChatLanguageModel>> MODEL_REGISTRY = new HashMap<>();
+    
+    /**
+     * The currently active language model used for text analysis.
+     */
     private static ChatLanguageModel model;
 
+    /**
+     * System prompt that instructs the model how to analyse political bias.
+     * Provides guidelines on what constitutes left vs. right bias and specifies
+     * the expected response format with score and explanation.
+     */
     private static final String SYSTEM_PROMPT =
             "You are an AI specialized in political bias analysis. "
                     + "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). "
@@ -92,7 +113,11 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Selects a default model based on available API keys
+     * Selects a default model based on available API keys.
+     * When Hugging Face API key is available, uses gemma-2b-it as the default model.
+     * 
+     * @param openaiKey The OpenAI API key (not used but kept for method signature)
+     * @param hfKey The Hugging Face API key
      */
     private static void selectDefaultModel(String openaiKey, String hfKey) {
         try {
@@ -112,10 +137,11 @@ public class TransformerAnalyzer {
     }
 
     /**
-     * Sets the active model by name
+     * Sets the active model by name. Attempts to initialise the specified model
+     * from the registry.
      * 
      * @param modelName The name of the model to use
-     * @return true if successful, false if model not found
+     * @return true if successfully initialised the model, false if model not found or initialisation failed
      */
     public static boolean setModel(String modelName) {
         if (MODEL_REGISTRY.containsKey(modelName)) {
@@ -130,6 +156,14 @@ public class TransformerAnalyzer {
         return false;
     }
 
+    /**
+     * Analyses text for political bias using the currently active language model.
+     * Implements retry logic with exponential backoff for handling temporary 
+     * service unavailability.
+     * 
+     * @param text The text to analyse for political bias
+     * @return An AnalyzerResult containing the bias analysis (left/right percentages and explanation)
+     */
     public static AnalyzerResult analyzeText(String text) {
         int maxRetries = 2;
         int retryDelay = 3000; // Start with 3 seconds
@@ -202,6 +236,15 @@ public class TransformerAnalyzer {
                 "Hugging Face API is unavailable after multiple retry attempts. Please try again later.");
     }
 
+    /**
+     * Parses the JSON response from the language model.
+     * Uses multiple strategies to extract the score and explanation:
+     * 1. Direct JSON parsing of the last JSON object in the response
+     * 2. Regular expression extraction as a fallback
+     * 
+     * @param response The raw text response from the language model
+     * @return A JSONObject containing the score and explanation
+     */
     private static JSONObject parseResponse(String response) {
         try {
             System.err.println("Raw response: " + response);
@@ -301,6 +344,14 @@ public class TransformerAnalyzer {
         }
     }
 
+    /**
+     * Command-line entry point for the analyser.
+     * Accepts an optional model specification via command line arguments.
+     * Reads text from standard input, analyses it, and outputs the result as JSON.
+     * 
+     * @param args Command line arguments
+     *        --model [model-name] to select a specific model from the registry
+     */
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             // Check for command line args to set model

@@ -4,17 +4,30 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * A lexicon-based political bias analyzer that uses both a political bias lexicon
+ * and the VADER sentiment lexicon to determine the political leaning of a text.
+ * The analyzer processes text in parallel using virtual threads for performance
+ * on larger documents.
+ */
 public class LexiconAnalyzer {
+    /** Map containing VADER sentiment lexicon terms and their scores */
     private static final Map<String, Double> VADER_LEXICON = new HashMap<>();
-    private static final Map<String, Double> POLITICAL_LEXICON = new HashMap<>();
-    private static final int CHUNK_SIZE = 5000; // Process text in chunks of this many characters
     
+    /** Map containing political bias lexicon terms and their scores */
+    private static final Map<String, Double> POLITICAL_LEXICON = new HashMap<>();
+    
+    /** Size of text chunks for parallel processing */
+    private static final int CHUNK_SIZE = 5000;
+    
+    /**
+     * Static initialization block that loads lexicons from resources.
+     * Falls back to minimal lexicons if resources can't be loaded.
+     */
     static {
         try {
             // Load resources from classpath
@@ -37,6 +50,12 @@ public class LexiconAnalyzer {
         }
     }
 
+    /**
+     * Loads the VADER sentiment lexicon from the provided input stream.
+     * 
+     * @param stream InputStream containing the VADER lexicon data
+     * @throws IOException if an I/O error occurs during reading
+     */
     private static void loadVaderLexicon(InputStream stream) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
@@ -64,6 +83,12 @@ public class LexiconAnalyzer {
         }
     }
 
+    /**
+     * Loads the political bias lexicon from the provided input stream.
+     * 
+     * @param stream InputStream containing the political lexicon data
+     * @throws IOException if an I/O error occurs during reading
+     */
     private static void loadPoliticalLexicon(InputStream stream) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
@@ -85,6 +110,10 @@ public class LexiconAnalyzer {
         }
     }
 
+    /**
+     * Initializes a minimal fallback lexicon when the main lexicons cannot be loaded.
+     * Contains a few key political terms to ensure basic functionality.
+     */
     private static void initializeFallbackLexicons() {
         // Fallback political bias terms
         POLITICAL_LEXICON.put("liberal", -0.8);
@@ -95,6 +124,12 @@ public class LexiconAnalyzer {
         POLITICAL_LEXICON.put("right", 0.6);
     }
 
+    /**
+     * Command-line entry point for the analyzer.
+     * Reads text from standard input, analyzes it, and outputs the result as JSON.
+     * 
+     * @param args Command line arguments (not used)
+     */
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             String text = scanner.nextLine();
@@ -108,6 +143,14 @@ public class LexiconAnalyzer {
         }
     }
 
+    /**
+     * Analyzes the political bias of the provided text using lexicon-based scoring.
+     * For longer texts, the method splits the text into chunks and processes them
+     * in parallel using virtual threads.
+     * 
+     * @param text The text to analyze
+     * @return An AnalyzerResult containing the political bias scores and explanation
+     */
     private static AnalyzerResult analyzeText(String text) {
         if (text == null || text.trim().isEmpty()) {
             return new AnalyzerResult(50, 50, "No text to analyze");
@@ -172,18 +215,22 @@ public class LexiconAnalyzer {
         }
     }
     
-    // Extract score values from an AnalyzerResult for aggregation
+    /**
+     * Extracts score components from an AnalyzerResult for aggregation.
+     * 
+     * @param result The AnalyzerResult to extract scores from
+     * @return A double array containing [politicalScore, vaderScore, politicalCount, vaderCount]
+     */
     private static double[] extractScores(AnalyzerResult result) {
         // The message format: "Analysis complete: Found X political terms and Y sentiment terms. Overall bias score: Z"
         String msg = result.getMessage();
         
-        // Parse message for scores (simplified approach)
+        // Parse message for scores
         int politicalCount = 0;
         int vaderCount = 0;
         double politicalScore = 0;
         double vaderScore = 0;
         
-        // This is a hack, but works for our format
         try {
             String[] parts = msg.split("Found ")[1].split(" political terms and ");
             politicalCount = Integer.parseInt(parts[0]);
@@ -195,7 +242,6 @@ public class LexiconAnalyzer {
             double bias = Double.parseDouble(msg.split("Overall bias score: ")[1]);
             
             // Work backward from the bias score to calculate individual contributions
-            // (This is an approximation)
             double divisor = politicalCount * 3 + vaderCount;
             if (divisor > 0) {
                 politicalScore = bias * (politicalCount * 3) / divisor;
@@ -209,9 +255,15 @@ public class LexiconAnalyzer {
         return new double[] { politicalScore, vaderScore, politicalCount, vaderCount };
     }
     
-    // Unified analyze method for single chunks
+    /**
+     * Analyzes a single chunk of text for political bias using lexicon matching.
+     * Processes individual words, hyphenated words, and bigrams for more comprehensive analysis.
+     * 
+     * @param chunk The text chunk to analyze
+     * @return An AnalyzerResult containing the analysis for this chunk
+     */
     private static AnalyzerResult analyzeChunk(String chunk) {
-        // Better tokenization
+        // Tokenization with punctuation removal
         String[] words = chunk.replaceAll("[\\.,;:!?\\(\\)\\[\\]{}'\"]", " ")
                              .toLowerCase()
                              .split("\\s+");
@@ -259,7 +311,16 @@ public class LexiconAnalyzer {
         return AnalyzerResult.createLexiconResult(politicalScore, vaderScore, politicalMatches, vaderMatches);
     }
     
-    // Calculate weighted score
+    /**
+     * Calculates a weighted score from political and sentiment scores.
+     * Political terms are weighted 3x more heavily than sentiment terms.
+     * 
+     * @param politicalScore Sum of political term scores
+     * @param vaderScore Sum of sentiment term scores
+     * @param politicalMatches Number of political terms matched
+     * @param vaderMatches Number of sentiment terms matched
+     * @return The weighted score representing overall bias
+     */
     private static double calculateWeightedScore(double politicalScore, double vaderScore, 
                                                int politicalMatches, int vaderMatches) {
         if (politicalMatches > 0 || vaderMatches > 0) {
@@ -269,7 +330,14 @@ public class LexiconAnalyzer {
         return 0;
     }
     
-    // Create result with proper percentages
+    /**
+     * Creates an AnalyzerResult with appropriate percentages and message from the score.
+     * 
+     * @param score The calculated bias score
+     * @param politicalMatches Number of political terms matched
+     * @param vaderMatches Number of sentiment terms matched
+     * @return An AnalyzerResult representing the political bias analysis
+     */
     private static AnalyzerResult createResult(double score, int politicalMatches, int vaderMatches) {
         // Convert to percentages
         double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 25)));

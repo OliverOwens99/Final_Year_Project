@@ -36,7 +36,7 @@ const AuthenticatedLayout = () => {
       {/* Modern navigation bar */}
       <nav className="app-navbar">
         <div className="navbar-brand">
-          <h2>Political Bias Analyzer</h2>
+          <h2>Political Bias Analyser</h2>
         </div>
         <div className="navbar-links">
           <Link to="/analyze" className="nav-link">Analyser</Link>

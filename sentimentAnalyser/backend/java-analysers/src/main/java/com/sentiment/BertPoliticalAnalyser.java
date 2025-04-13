@@ -8,11 +8,30 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * A political bias analyser based on a pre-trained BERT model.
+ * This class loads a specialised BERT model trained for political bias detection
+ * and provides methods for analysing text content. It uses ONNX Runtime for 
+ * efficient model inference.
+ * <p>
+ * The analyser evaluates text and assigns a political leaning score,
+ * which is then converted to left/right percentages.
+ */
 public class BertPoliticalAnalyser {
+    /** The ONNX Runtime environment used for model execution */
     private static OrtEnvironment env;
+    
+    /** The ONNX Runtime session for the loaded BERT model */
     private static OrtSession session;
+    
+    /** Maximum sequence length supported by the BERT model */
     private static final int MAX_LENGTH = 512;
     
+    /**
+     * Static initialisation block that loads the BERT model from resources.
+     * The model is extracted to a temporary file for ONNX Runtime to load.
+     * Errors during initialisation are logged but will not crash the application.
+     */
     static {
         try {
             env = OrtEnvironment.getEnvironment();
@@ -45,6 +64,14 @@ public class BertPoliticalAnalyser {
         }
     }
 
+    /**
+     * Analyses text for political bias using the pre-trained BERT model.
+     * The method handles text preprocessing, tokenisation, model inference
+     * and bias score calculation.
+     * 
+     * @param text The text to analyse for political bias
+     * @return An AnalyzerResult containing left/right percentages and explanation
+     */
     public static AnalyzerResult analyzeText(String text) {
         try {
             // Clean text before analysis
@@ -87,6 +114,14 @@ public class BertPoliticalAnalyser {
         }
     }
 
+    /**
+     * Converts input text to token IDs suitable for the BERT model.
+     * Uses a simplified tokenisation approach that maps words to consistent
+     * token IDs while respecting BERT's special tokens like [CLS] and [SEP].
+     * 
+     * @param text The text to tokenise
+     * @return An array of token IDs representing the text
+     */
     private static long[] tokenizeText(String text) {
         List<Long> tokenIds = new ArrayList<>();
         
@@ -125,6 +160,14 @@ public class BertPoliticalAnalyser {
         return inputIds;
     }
 
+    /**
+     * Calculates a political bias score from model output logits.
+     * Normalises logit values using hyperbolic tangent to ensure
+     * scores are within a reasonable range.
+     * 
+     * @param logits The raw logits from the BERT model output
+     * @return A bias score representing the political leaning of the text
+     */
     private static double calculatePoliticalBias(float[] logits) {
         // Simplified bias calculation
         double sum = 0;
@@ -134,6 +177,12 @@ public class BertPoliticalAnalyser {
         return sum / logits.length;
     }
     
+    /**
+     * Command-line entry point for the analyser.
+     * Reads text from standard input, analyses it, and outputs the result as JSON.
+     * 
+     * @param args Command line arguments (not used)
+     */
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             String text = scanner.nextLine();
