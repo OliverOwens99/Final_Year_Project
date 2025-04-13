@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function SentimentAnalyzer() {
@@ -144,36 +144,38 @@ function SentimentAnalyzer() {
             </button>
           </div>
         </div>
+      </div>
 
-        {results && (
-          <div className="results-container card">
-            <div className="card-header">
-              <h2>Analysis Results</h2>
-            </div>
-            <div className="card-body">
-              <div className="results-section">
-                <div className="text-analysis">
-                  {results.message && (
-                    <div className="message-box">
-                      <h3>Political Leaning</h3>
-                      <p>{results.message}</p>
-                    </div>
-                  )}
-                  
-                  {results.explanation && (
-                    <div className="explanation-section">
-                      <h3>Detailed Explanation</h3>
-                      <div className="explanation-box">
-                        <p>{results.explanation}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+      {results && (
+        <div className="results-container card">
+          <div className="card-header">
+            <h2>Analysis Results</h2>
+          </div>
+          <div className="card-body">
+            <div className="results-section">
+              <div className="text-analysis">
+                {results.message && (
+                  <div className="message-box">
+                    <h3>Political Leaning</h3>
+                    <p>{results.message}</p>
+                  </div>
+                )}
                 
-                <div className="visualization-section">
-                  <h3>Political Bias Distribution</h3>
-                  <div className="chart-container">
-                    <PieChart width={200} height={200}>
+                {results.explanation && (
+                  <div className="explanation-section">
+                    <h3>Detailed Explanation</h3>
+                    <div className="explanation-box">
+                      <p>{results.explanation}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="visualization-section">
+                <h3>Political Bias Distribution</h3>
+                <div className="chart-container">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
                       <Pie
                         data={[
                           { name: 'Left', value: parseFloat(results.left) || 50 },
@@ -182,22 +184,52 @@ function SentimentAnalyzer() {
                         dataKey="value"
                         cx="50%"
                         cy="50%"
-                        outerRadius={80}
+                        outerRadius={60}
+                        innerRadius={0}
                         fill="#8884d8"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        paddingAngle={2}
+                        // Position labels inside the pie segments
+                        label={({
+                          cx, cy, midAngle, innerRadius, outerRadius, percent, index, name
+                        }) => {
+                          const RADIAN = Math.PI / 180;
+                          // Position slightly inside the outer edge
+                          const radius = outerRadius * 0.75;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          
+                          return (
+                            <text 
+                              x={x} 
+                              y={y} 
+                              fill="#fff" 
+                              textAnchor="middle" 
+                              dominantBaseline="middle"
+                              style={{ fontWeight: 'bold', fontSize: '14px', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+                            >
+                              {`${name}: ${(percent * 100).toFixed(0)}%`}
+                            </text>
+                          );
+                        }}
+                        labelLine={false}
                       >
                         <Cell key="left" fill="#0066cc" />
                         <Cell key="right" fill="#cc0000" />
                       </Pie>
-                      <Legend />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        align="center" 
+                        layout="horizontal" 
+                        wrapperStyle={{ paddingTop: 10 }}
+                      />
                     </PieChart>
-                  </div>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

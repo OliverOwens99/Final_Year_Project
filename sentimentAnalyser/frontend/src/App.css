@@ -436,15 +436,19 @@ button:hover, .btn-primary:hover {
 }
 
 .chart-container {
-  height: 220px;
+  height: 320px;  /* Increased height */
+  max-width: 550px; /* Increased width */
+  margin-left: auto;
+  margin-right: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: 4px; /* Reduced border radius from 8px to 4px */
+  padding: 10px 20px; /* Less vertical padding, same horizontal padding */
+  margin-bottom: 10px;
+  overflow: visible; /* Allow content to extend beyond the container */
 }
-
 /* ------------- */
 /* LOADING/ERROR */
 /* ------------- */

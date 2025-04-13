@@ -84,7 +84,7 @@ function History() {
                   </a>
                 </h3>
                 <div className="meta-info">
-                  <span>Analyzed on {new Date(item.date).toLocaleDateString()}</span>
+                  <span>Analysed on {new Date(item.date).toLocaleDateString()}</span>
                   <span className="separator">•</span>
                   <span>Method: {item.analyzer_type}</span>
                   {item.model && (
@@ -146,7 +146,7 @@ function History() {
                   onClick={() => handleReAnalyze(item.url, item.analyzer_type, item.model)}
                   className="btn-primary"
                 >
-                  Re-analyze
+                  Re-analyse
                 </button>
                 <a href={item.url} target="_blank" rel="noopener noreferrer" className="source-link">
                   View Source Article
