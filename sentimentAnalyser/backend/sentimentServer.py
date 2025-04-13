@@ -18,7 +18,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JAR_PATH = os.path.join(BASE_DIR, "java-analysers", "target", 
                       "sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar")
-
+#this was added to help scrub fox news and other anti scrapping sites 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 HEADERS = {'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml,application/xml'}
 
@@ -224,8 +224,21 @@ def analyze():
         
         # Analyze the text
         result = run_java_analyzer(analyzer_type, article_text, model)
-        # for debugging purposes, log the result before sending it to the frontend
-        logging.info(f"Analysis result before sending to frontend: {json.dumps(result)}")
+        
+        # Save analysis to history
+        history_record = {
+            "user": current_user.id,
+            "url": url,
+            "analyzer_type": analyzer_type,
+            "model": model if analyzer_type == "transformer" else None,
+            "left": result["left"],
+            "right": result["right"],
+            "message": result["message"],
+            "explanation": result.get("explanation", ""),
+            "date": datetime.now()
+        }
+        # Store in MongoDB
+        links_collection.insert_one(history_record)
         
         return jsonify({
             'results': result,

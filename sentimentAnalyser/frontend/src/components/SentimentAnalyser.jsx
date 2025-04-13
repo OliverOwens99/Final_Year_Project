@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Legend } from 'recharts';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function SentimentAnalyzer() {
-  const [url, setUrl] = useState('');
-  const [analyzer, setAnalyzer] = useState('lexicon');
-  //const [analyzer, setAnalyzer] = useState('llm');
-  const [model, setModel] = useState('phi-2');
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Initialize state with values from navigation, if available
+  const [url, setUrl] = useState(location.state?.url || '');
+  const [analyzer, setAnalyzer] = useState(location.state?.analyzerType || 'lexicon');
+  const [model, setModel] = useState(location.state?.model || 'mistral-7b');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [consoleMessage, setConsoleMessage] = useState('');
-  const navigate = useNavigate();
 
   // Check authentication when component mounts
   useEffect(() => {
@@ -22,7 +24,6 @@ function SentimentAnalyzer() {
         });
 
         const data = await response.json();
-        console.log("Raw data from backend:", data);
         if (!response.ok || !data.authenticated) {
           navigate('/login');
         }
@@ -51,7 +52,7 @@ function SentimentAnalyzer() {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Important for sending cookies
+        credentials: 'include',
         body: JSON.stringify({
           url: url,
           analyzer_type: analyzer,
@@ -61,17 +62,14 @@ function SentimentAnalyzer() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Redirect to login if not authenticated
           navigate('/login');
           return;
         }
-
         const errorData = await response.json();
         throw new Error(errorData.error || 'Server error');
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
       setResults(data.results);
       setConsoleMessage(data.console_message || 'Analysis complete');
     } catch (error) {
@@ -83,99 +81,123 @@ function SentimentAnalyzer() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Sentiment Analyser</h1>
-      <p>Enter the link to the article you want to analyze and select the analysis module from the dropdown menu.</p>
-
-      <div style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="Enter article URL"
-          style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-        />
-
-        <select
-          value={analyzer}
-          onChange={(e) => setAnalyzer(e.target.value)}
-          style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-        >
-          <option value="llm">BERT Pre-trained Political Analyser</option>
-          <option value="transformer">Transformer Analysis</option>
-          <option value="lexicon">Lexicon Analysis</option>
-        </select>
-
-        {/* Model dropdown */}
-        {analyzer === 'transformer' && (
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-          >
-            {/* Updated model options that actually work */}
-            <option value="mistral-7b">Mistral 7B Instruct</option>
-            <option value="gemma-2b-it">Google Gemma 2B-IT</option>
-            <option value="llama-2-7b">Meta Llama 2 7B Chat</option>
-            <option value="deepseek-chat">DeepSeek 7B Chat</option>
-          </select>
-        )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '8px',
-            backgroundColor: loading ? '#cccccc' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {loading ? 'Analysing...' : 'Analyse'}
-        </button>
+    <div className="sentiment-analyzer-container">
+      <div className="page-header">
+        <h1>Political Bias Analyser</h1>
+        <p className="subtitle">Analyse the political leaning of any online article</p>
       </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {consoleMessage && <p>{consoleMessage}</p>}
+      <div className="analyzer-form">
+        <div className="card">
+          <div className="card-body">
+            <div className="form-group">
+              <label htmlFor="url-input">Article URL</label>
+              <input
+                id="url-input"
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Enter article URL (e.g., https://www.example.com/article)"
+              />
+            </div>
 
-      {results && (
-        <div style={{ marginTop: '20px' }}>
-          <h2>Analysis Results</h2>
-          {results.message && (
-            <div style={{ marginBottom: '20px' }}>
-              <h3>Analysis:</h3>
-              <p>{results.message}</p>
+            <div className="analyzer-options">
+              <div className="form-group">
+                <label htmlFor="analyzer-select">Analysis Method</label>
+                <select
+                  id="analyzer-select"
+                  value={analyzer}
+                  onChange={(e) => setAnalyzer(e.target.value)}
+                >
+                  <option value="llm">BERT Pre-trained Political Analyser</option>
+                  <option value="transformer">Transformer Analysis</option>
+                  <option value="lexicon">Lexicon Analysis</option>
+                </select>
+              </div>
+
+              {analyzer === 'transformer' && (
+                <div className="form-group">
+                  <label htmlFor="model-select">AI Model</label>
+                  <select
+                    id="model-select"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                  >
+                    <option value="mistral-7b">Mistral 7B Instruct</option>
+                    <option value="gemma-2b-it">Google Gemma 2B-IT</option>
+                    <option value="llama-2-7b">Meta Llama 2 7B Chat</option>
+                    <option value="deepseek-chat">DeepSeek 7B Chat</option>
+                  </select>
+                </div>
+              )}
             </div>
-          )}
-          {results.explanation && (
-            <div style={{ marginBottom: '20px' }}>
-              <h3>Explanation:</h3>
-              <p>{results.explanation}</p>
-            </div>
-          )}
-          <PieChart width={400} height={400}>
-            <Pie
-              data={[
-                { name: 'Left', value: parseFloat(results.left) || 50 },
-                { name: 'Right', value: parseFloat(results.right) || 50 },
-              ]}
-              dataKey="value"
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              fill="#8884d8"
-              label
+
+            {error && <div className="error-message">{error}</div>}
+            {consoleMessage && !error && <div className="success-message">{consoleMessage}</div>}
+
+            <button 
+              onClick={handleSubmit} 
+              disabled={loading}
+              className={loading ? "btn-secondary" : "btn-primary"}
             >
-              <Cell key="left" fill="#0000FF" /> {/* blue for Left */}
-              <Cell key="right" fill="#FF0000" /> {/* red for Right */}
-            </Pie>
-            <Legend />
-          </PieChart>
+              {loading ? 'Analyzing...' : 'Analyze Article'}
+            </button>
+          </div>
         </div>
-      )}
+
+        {results && (
+          <div className="results-container card">
+            <div className="card-header">
+              <h2>Analysis Results</h2>
+            </div>
+            <div className="card-body">
+              <div className="results-section">
+                <div className="text-analysis">
+                  {results.message && (
+                    <div className="message-box">
+                      <h3>Political Leaning</h3>
+                      <p>{results.message}</p>
+                    </div>
+                  )}
+                  
+                  {results.explanation && (
+                    <div className="explanation-section">
+                      <h3>Detailed Explanation</h3>
+                      <div className="explanation-box">
+                        <p>{results.explanation}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="visualization-section">
+                  <h3>Political Bias Distribution</h3>
+                  <div className="chart-container">
+                    <PieChart width={200} height={200}>
+                      <Pie
+                        data={[
+                          { name: 'Left', value: parseFloat(results.left) || 50 },
+                          { name: 'Right', value: parseFloat(results.right) || 50 },
+                        ]}
+                        dataKey="value"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        <Cell key="left" fill="#0066cc" />
+                        <Cell key="right" fill="#cc0000" />
+                      </Pie>
+                      <Legend />
+                    </PieChart>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

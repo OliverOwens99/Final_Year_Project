@@ -33,7 +33,7 @@ public class TransformerAnalyzer {
 
     static {
         // Initialize model registry - one model per provider
-        // Replace these problematic models
+        
         MODEL_REGISTRY.put("mistral-7b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                         .modelId("mistralai/Mistral-7B-Instruct-v0.2") // This one works

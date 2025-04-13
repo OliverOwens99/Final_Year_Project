@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from 'recharts';
 
 function History() {
   const [history, setHistory] = useState([]);
@@ -17,7 +17,6 @@ function History() {
         
         if (!response.ok) {
           if (response.status === 401) {
-            // Redirect to login if not authenticated
             navigate('/login');
             return;
           }
@@ -25,7 +24,7 @@ function History() {
         }
         
         const data = await response.json();
-        setHistory(data);
+        setHistory(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error fetching history:', error);
         setError('Failed to load history. Please try again later.');
@@ -41,84 +40,118 @@ function History() {
     navigate('/analyze', { state: { url, analyzerType, model } });
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '20px' }}>Loading history...</div>;
-  if (error) return <div style={{ textAlign: 'center', padding: '20px', color: 'red' }}>{error}</div>;
+  if (loading) return (
+    <div className="loading-container">
+      <div className="spinner"></div>
+      <p>Loading your analysis history...</p>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="error-container">
+      <h2>Error</h2>
+      <p>{error}</p>
+      <button onClick={() => window.location.reload()} className="btn-primary">Try Again</button>
+    </div>
+  );
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>Your Analysis History</h1>
+    <div className="history-container">
+      <div className="page-header">
+        <h1>Analysis History</h1>
+        <p className="subtitle">Your previous article analyses</p>
+      </div>
       
       {history.length === 0 ? (
-        <p>You haven't analyzed any articles yet.</p>
+        <div className="empty-state">
+          <div className="empty-icon">📊</div>
+          <h2>No analyses yet</h2>
+          <p>You haven't analyzed any articles yet.</p>
+          <button onClick={() => navigate('/analyze')} className="btn-primary">Analyse an Article</button>
+        </div>
       ) : (
-        <div>
+        <div className="history-list">
           {history.map((item, index) => (
-            <div 
-              key={index}
-              style={{
-                backgroundColor: '#f9f9f9',
-                borderRadius: '8px',
-                padding: '15px',
-                marginBottom: '20px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-            >
-              <h3 style={{ marginTop: 0 }}>
-                <a 
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#007bff' }}
-                >
-                  {item.url}
-                </a>
-              </h3>
-              
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                <div style={{ flex: '1', minWidth: '300px' }}>
-                  <p><strong>Date analyzed:</strong> {new Date(item.date).toLocaleDateString()}</p>
-                  <p><strong>Analyzer used:</strong> {item.analyzer_type}</p>
-                  {item.model && <p><strong>Model:</strong> {item.model}</p>}
-                  <p><strong>Analysis:</strong> {item.message}</p>
-                  {item.explanation && <p><strong>Explanation:</strong> {item.explanation}</p>}
-                </div>
-                
-                <div style={{ flex: '0 0 auto', width: '240px' }}>
-                  <PieChart width={200} height={200}>
-                    <Pie
-                      data={[
-                        { name: 'Left', value: parseFloat(item.left) || 50 },
-                        { name: 'Right', value: parseFloat(item.right) || 50 },
-                      ]}
-                      dataKey="value"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={60}
-                      fill="#8884d8"
-                      label
-                    >
-                      <Cell key="left" fill="#0000FF" />
-                      <Cell key="right" fill="#FF0000" />
-                    </Pie>
-                    <Legend />
-                  </PieChart>
+            <div key={index} className="analysis-card">
+              <div className="card-header">
+                <h3 className="article-title">
+                  <a 
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {item.url.replace(/^https?:\/\//, '').split('/')[0]}
+                  </a>
+                </h3>
+                <div className="meta-info">
+                  <span>Analyzed on {new Date(item.date).toLocaleDateString()}</span>
+                  <span className="separator">•</span>
+                  <span>Method: {item.analyzer_type}</span>
+                  {item.model && (
+                    <>
+                      <span className="separator">•</span>
+                      <span>Model: {item.model}</span>
+                    </>
+                  )}
                 </div>
               </div>
               
-              <button
-                onClick={() => handleReAnalyze(item.url, item.analyzer_type, item.model)}
-                style={{
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px 15px',
-                  cursor: 'pointer',
-                  marginTop: '10px'
-                }}
-              >
-                Re-analyze
-              </button>
+              <div className="results-section">
+                <div className="text-analysis">
+                  <h3>Analysis</h3>
+                  <div className="message-box">
+                    <p>{item.message}</p>
+                  </div>
+                  
+                  {item.explanation && (
+                    <div className="explanation-section">
+                      <h3>Detailed Explanation</h3>
+                      <div className="explanation-box">
+                        <p>{item.explanation}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="visualization-section">
+                  <h3>Political Bias Distribution</h3>
+                  <div className="chart-container">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Left', value: parseFloat(item.left) || 50 },
+                            { name: 'Right', value: parseFloat(item.right) || 50 },
+                          ]}
+                          dataKey="value"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          labelLine={false}
+                        >
+                          <Cell key="left" fill="#0066cc" />
+                          <Cell key="right" fill="#cc0000" />
+                        </Pie>
+                        <Legend verticalAlign="bottom" align="center" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="card-footer">
+                <button
+                  onClick={() => handleReAnalyze(item.url, item.analyzer_type, item.model)}
+                  className="btn-primary"
+                >
+                  Re-analyze
+                </button>
+                <a href={item.url} target="_blank" rel="noopener noreferrer" className="source-link">
+                  View Source Article
+                </a>
+              </div>
             </div>
           ))}
         </div>
