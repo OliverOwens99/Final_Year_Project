@@ -93,17 +93,34 @@ public class TransformerAnalyzer {
                 .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
                 .waitForModel(true).build());
 
-        MODEL_REGISTRY.put("falcon-1b",
-        () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
-                .modelId("tiiuae/falcon-1b")
-                .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
-                .waitForModel(true).build());
+                MODEL_REGISTRY.put("cerebras-590m",
+                () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                        .modelId("cerebras/Cerebras-GPT-590M")
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(90))
+                        .waitForModel(true).build());
 
         MODEL_REGISTRY.put("bloomz-1b7",
         () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                 .modelId("bigscience/bloomz-1b7")
                 .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
                 .waitForModel(true).build());
+                MODEL_REGISTRY.put("gpt-3.5-turbo", 
+                () -> OpenAiChatModel.builder()
+                        .apiKey(System.getenv("OPENAI_API_KEY"))
+                        .modelName("gpt-3.5-turbo")
+                        .temperature(0.1)
+                        .timeout(java.time.Duration.ofSeconds(120))
+                        .maxRetries(3)
+                        .build());
+            
+        MODEL_REGISTRY.put("gpt-4", 
+                () -> OpenAiChatModel.builder()
+                        .apiKey(System.getenv("OPENAI_API_KEY"))
+                        .modelName("gpt-4")
+                        .temperature(0.1) 
+                        .timeout(java.time.Duration.ofSeconds(180))
+                        .maxRetries(3)
+                        .build());
 
 
         // Initialize the model based on available API keys
@@ -210,10 +227,10 @@ public class TransformerAnalyzer {
 
                 // Create prompt with system and user messages
                 var response =
-                        model.generate(new SystemMessage(SYSTEM_PROMPT), new UserMessage(text));
+                        model.chat(new SystemMessage(SYSTEM_PROMPT), new UserMessage(text));
 
                 // Extract the content from the response
-                String content = response.content().text();
+                String content = response.aiMessage().text();
 
                 // Parse score from response
                 JSONObject result = parseResponse(content);

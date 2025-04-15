@@ -135,7 +135,7 @@ function SentimentAnalyzer() {
                       <option value="phi-2">Microsoft Phi-2 (2.7B)</option>
                       <option value="deepseek-chat">DeepSeek Coder 1.3B</option>
                       <option value="tinyllama-1.1b">TinyLlama 1.1B</option>
-                      <option value="falcon-1b">Falcon 1B</option>
+                      <option value="cerebras-590m">cerebras-590m</option>
                       <option value="bloomz-1b7">BLOOMZ 1.7B</option>
                     </optgroup>
                   </select>
