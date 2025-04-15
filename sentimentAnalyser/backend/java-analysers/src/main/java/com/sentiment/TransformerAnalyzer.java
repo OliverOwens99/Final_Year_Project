@@ -113,7 +113,15 @@ public class TransformerAnalyzer {
                         .maxRetries(3)
                         .build());
             
-        MODEL_REGISTRY.put("gpt-4", 
+        MODEL_REGISTRY.put("gpt-3.5-turbo",
+                () -> OpenAiChatModel.builder()
+                        .apiKey(System.getenv("OPENAI_API_KEY"))
+                        .modelName("gpt-3.5-turbo-16k")
+                        .temperature(0.1) 
+                        .timeout(java.time.Duration.ofSeconds(180))
+                        .maxRetries(3)
+                        .build());
+        MODEL_REGISTRY.put("gpt-4",
                 () -> OpenAiChatModel.builder()
                         .apiKey(System.getenv("OPENAI_API_KEY"))
                         .modelName("gpt-4")

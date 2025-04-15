@@ -96,9 +96,9 @@ def extract_text_from_url(url):
         
         # If we got reasonable text content, use it
         if article.text and len(article.text) > 100:
-            extracted_text = article.text
+            extracted_text = article.text[:5000]
             logging.info(f"Extracted {len(extracted_text)} chars with newspaper3k. Preview: {extracted_text[:150]}...")
-            return extracted_text
+            return extracted_text[:5000]
     except Exception as primary_error:
         logging.warning(f"Primary extraction failed: {str(primary_error)}")
         # Continue to fallback methods
