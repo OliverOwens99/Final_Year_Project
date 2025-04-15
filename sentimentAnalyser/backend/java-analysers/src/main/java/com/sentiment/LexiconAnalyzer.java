@@ -97,8 +97,10 @@ public class LexiconAnalyzer {
             String line;
             int count = 0;
             while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
+                // Skip empty lines and comment lines
+                if (line.trim().isEmpty() || line.trim().startsWith("//")) continue;
                 
+                // Split by tab
                 String[] parts = line.split("\t");
                 if (parts.length >= 2) {
                     try {

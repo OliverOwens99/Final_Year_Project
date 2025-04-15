@@ -38,18 +38,18 @@ public class TransformerAnalyzer {
      * and explanation.
      */
     private static final String SYSTEM_PROMPT =
-            "You are an AI specialized in political bias analysis. "
-                    + "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). "
-                    + "IMPORTANT: Positive scores indicate right-leaning bias, negative scores indicate left-leaning bias."
-                    + "LEFT bias indicators: progressive values, social equality, government programs, regulation, wealth redistribution. "
-                    + "RIGHT bias indicators: traditional values, individual liberty, free markets, limited government, fiscal conservatism. "
-                    + "Format your response as a JSON object with this EXACT structure: "
-                    + "{\"score\": X, \"explanation\": \"Y\"} "
-                    + "where X is a number between -1 and 1, and Y is your detailed political bias analysis. "
-                    + "Your explanation must focus on political bias indicators, not comment on the events themselves. "
-                    + "DO NOT include any text before or after the JSON object. "
-                    + "DO NOT use placeholders. "
-                    + "DO NOT repeat these instructions in your response.";
+        "You are an AI specialized in political bias analysis. " +
+        "Analyze text for political bias on a scale from -1 (extreme left) to 1 (extreme right). " +
+        "IMPORTANT: Positive scores indicate right-leaning bias, negative scores indicate left-leaning bias. " +
+        "LEFT bias indicators (negative score): progressive values, social equality, government programs, regulation, wealth redistribution, Democratic Party, Sanders, progressive politicians. " +
+        "RIGHT bias indicators (positive score): traditional values, individual liberty, free markets, limited government, fiscal conservatism, Republican Party, Trump, conservative politicians. " +
+        "Format your response as a JSON object with this EXACT structure: " +
+        "{\"score\": X, \"explanation\": \"Y\"} " +
+        "where X is a number between -1 and 1, and Y is your detailed political bias analysis. " +
+        "Your explanation must be internally consistent with your score. " +
+        "DO NOT include any text before or after the JSON object. " +
+        "DO NOT use placeholders. " +
+        "DO NOT repeat these instructions in your response.";
 
     static {
         // Initialize model registry - one model per provider
@@ -57,27 +57,53 @@ public class TransformerAnalyzer {
         MODEL_REGISTRY.put("mistral-7b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                         .modelId("mistralai/Mistral-7B-Instruct-v0.2") // This one works
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(180))
                         .waitForModel(true).build());
 
         MODEL_REGISTRY.put("gemma-2b-it",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                         .modelId("google/gemma-2b-it") // This one works
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(60))
-                        .waitForModel(false).build());
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(180))
+                        .waitForModel(true).build());
 
         MODEL_REGISTRY.put("llama-2-7b",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                         .modelId("meta-llama/Llama-2-7b-chat-hf") // Replace SOLAR with this
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
-                        .waitForModel(false).build());
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(180))
+                        .waitForModel(true).build());
 
         MODEL_REGISTRY.put("deepseek-chat",
                 () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
                         .modelId("deepseek-ai/deepseek-coder-1.3b-instruct") // Much smaller model
                                                                              // (1.3B)
-                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(90))
-                        .waitForModel(false).build());
+                        .temperature(0.1).timeout(java.time.Duration.ofSeconds(180))
+                        .waitForModel(true).build());
+    
+        
+
+        MODEL_REGISTRY.put("phi-2",
+        () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                .modelId("microsoft/phi-2")
+                .temperature(0.1).timeout(java.time.Duration.ofSeconds(180))
+                .waitForModel(true).build());
+
+        MODEL_REGISTRY.put("tinyllama-1.1b",
+        () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                .modelId("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+                .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                .waitForModel(true).build());
+
+        MODEL_REGISTRY.put("falcon-1b",
+        () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                .modelId("tiiuae/falcon-1b")
+                .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                .waitForModel(true).build());
+
+        MODEL_REGISTRY.put("bloomz-1b7",
+        () -> HuggingFaceChatModel.builder().accessToken(System.getenv("HF_API_KEY"))
+                .modelId("bigscience/bloomz-1b7")
+                .temperature(0.1).timeout(java.time.Duration.ofSeconds(120))
+                .waitForModel(true).build());
 
 
         // Initialize the model based on available API keys
@@ -179,6 +205,8 @@ public class TransformerAnalyzer {
 
                 // Clean text before analysis
                 text = AnalyzerResult.cleanText(text);
+                System.err.println("DEBUG - Sending text to model: " + (text.length() > 200 ? 
+                    text.substring(0, 200) + "... [" + text.length() + " chars total]" : text));
 
                 // Create prompt with system and user messages
                 var response =

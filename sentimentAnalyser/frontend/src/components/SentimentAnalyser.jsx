@@ -123,10 +123,21 @@ function SentimentAnalyzer() {
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                   >
-                    <option value="mistral-7b">Mistral 7B Instruct</option>
-                    <option value="gemma-2b-it">Google Gemma 2B-IT</option>
-                    <option value="llama-2-7b">Meta Llama 2 7B Chat</option>
-                    <option value="deepseek-chat">DeepSeek 7B Chat</option>
+                    {/* Larger Models */}
+                    <optgroup label="Larger Models">
+                      <option value="mistral-7b">Mistral 7B Instruct</option>
+                      <option value="gemma-2b-it">Google Gemma 2B-IT</option>
+                      <option value="llama-2-7b">Meta Llama 2 7B Chat</option>
+                    </optgroup>
+
+                    {/* Smaller Models */}
+                    <optgroup label="Smaller Models">
+                      <option value="phi-2">Microsoft Phi-2 (2.7B)</option>
+                      <option value="deepseek-chat">DeepSeek Coder 1.3B</option>
+                      <option value="tinyllama-1.1b">TinyLlama 1.1B</option>
+                      <option value="falcon-1b">Falcon 1B</option>
+                      <option value="bloomz-1b7">BLOOMZ 1.7B</option>
+                    </optgroup>
                   </select>
                 </div>
               )}

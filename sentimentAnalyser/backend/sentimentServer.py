@@ -96,7 +96,9 @@ def extract_text_from_url(url):
         
         # If we got reasonable text content, use it
         if article.text and len(article.text) > 100:
-            return article.text[:5000]
+            extracted_text = article.text
+            logging.info(f"Extracted {len(extracted_text)} chars with newspaper3k. Preview: {extracted_text[:150]}...")
+            return extracted_text
     except Exception as primary_error:
         logging.warning(f"Primary extraction failed: {str(primary_error)}")
         # Continue to fallback methods
@@ -126,25 +128,25 @@ def extract_text_from_url(url):
             for selector in ['article', 'main', '[role="main"]', '.content', '#content', '.article-body', '.story-body']:
                 main_content = soup.select_one(selector)
                 if main_content and len(main_content.get_text(strip=True)) > 200:
+                    logging.info(f"Found main content using selector: {selector}")
                     break
                     
             # Extract text from main content if found, otherwise from the whole page
             if main_content:
                 text = main_content.get_text(separator=' ')
+                logging.info(f"Extracted text from main content element")
             else:
                 text = soup.get_text(separator=' ')
+                logging.info(f"Extracted text from entire page (no main content found)")
                 
             # Clean up text
             lines = [line.strip() for line in text.splitlines() if line.strip()]
             text = " ".join(lines)
             
             if len(text) > 100:
-                return text[:5000]
-                
-        # Check for common paywalls or subscription blocks
-        if any(term in response.text.lower() for term in ['subscribe', 'subscription', 'paywall', 'sign in to read']):
-            return "This article appears to be behind a paywall and cannot be fully analyzed."
-            
+                extracted_text = text
+                logging.info(f"Extracted {len(extracted_text)} chars with BeautifulSoup. Preview: {extracted_text[:150]}...")
+                return extracted_text
     except requests.exceptions.HTTPError as http_err:
         if http_err.response.status_code == 404:
             return "The article could not be found (404 error). The URL might be incorrect or the content may have been removed."
