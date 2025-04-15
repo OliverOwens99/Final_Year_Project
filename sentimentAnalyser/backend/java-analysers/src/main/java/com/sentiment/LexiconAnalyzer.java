@@ -24,6 +24,9 @@ public class LexiconAnalyzer {
     /** Size of text chunks for parallel processing */
     private static final int CHUNK_SIZE = 5000;
     
+    /** Enable verbose debug output */
+    private static final boolean DEBUG = true;
+    
     /**
      * Static initialization block that loads lexicons from resources.
      * Falls back to minimal lexicons if resources can't be loaded.
@@ -92,21 +95,27 @@ public class LexiconAnalyzer {
     private static void loadPoliticalLexicon(InputStream stream) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
+            int count = 0;
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
                 
                 String[] parts = line.split("\t");
                 if (parts.length >= 2) {
                     try {
-                        POLITICAL_LEXICON.put(
-                            parts[0].trim().toLowerCase(),
-                            Double.parseDouble(parts[1].trim())
-                        );
+                        String term = parts[0].trim().toLowerCase();
+                        double score = Double.parseDouble(parts[1].trim());
+                        POLITICAL_LEXICON.put(term, score);
+                        count++;
+                        // Print every 50th entry for verification
+                        if (count % 50 == 0) {
+                            System.err.println("Loaded " + count + " political terms. Sample: " + term + " = " + score);
+                        }
                     } catch (NumberFormatException e) {
                         System.err.println("Invalid political score for: " + parts[0]);
                     }
                 }
             }
+            System.err.println("Total political lexicon entries: " + POLITICAL_LEXICON.size());
         }
     }
 
@@ -122,6 +131,15 @@ public class LexiconAnalyzer {
         POLITICAL_LEXICON.put("republican", 0.7);
         POLITICAL_LEXICON.put("left", -0.6);
         POLITICAL_LEXICON.put("right", 0.6);
+        POLITICAL_LEXICON.put("progressive", -0.5);
+        POLITICAL_LEXICON.put("traditional", 0.5);
+        
+        // Add some sentiment terms that might have political implications
+        VADER_LEXICON.put("freedom", 2.0);
+        VADER_LEXICON.put("equality", 2.0);
+        VADER_LEXICON.put("regulation", -1.0);
+        VADER_LEXICON.put("tax", -1.0);
+        VADER_LEXICON.put("government", -0.5);
     }
 
     /**
@@ -133,6 +151,7 @@ public class LexiconAnalyzer {
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             String text = scanner.nextLine();
+            System.err.println("Processing text of length: " + text.length());
             AnalyzerResult result = analyzeText(text);
             System.out.println(result.toString());
         } catch (Exception e) {
@@ -154,6 +173,11 @@ public class LexiconAnalyzer {
     private static AnalyzerResult analyzeText(String text) {
         if (text == null || text.trim().isEmpty()) {
             return new AnalyzerResult(50, 50, "No text to analyze");
+        }
+        
+        // Print first 100 chars for debugging
+        if (DEBUG) {
+            System.err.println("First 100 chars: " + text.substring(0, Math.min(100, text.length())));
         }
     
         // Clean text
@@ -208,7 +232,8 @@ public class LexiconAnalyzer {
                 totalPoliticalMatches, totalVaderMatches
             );
             
-            return createResult(finalScore, totalPoliticalMatches, totalVaderMatches);
+            return createEnhancedResult(finalScore, totalPoliticalScore, totalVaderScore, 
+                                      totalPoliticalMatches, totalVaderMatches);
         } catch (Exception e) {
             System.err.println("Error in virtual thread processing: " + e.getMessage());
             return analyzeChunk(text);
@@ -249,7 +274,9 @@ public class LexiconAnalyzer {
             }
         } catch (Exception e) {
             // If parsing fails, return zeros
-            System.err.println("Error parsing scores: " + e.getMessage());
+            if (DEBUG) {
+                System.err.println("Error parsing scores: " + e.getMessage());
+            }
         }
         
         return new double[] { politicalScore, vaderScore, politicalCount, vaderCount };
@@ -263,10 +290,20 @@ public class LexiconAnalyzer {
      * @return An AnalyzerResult containing the analysis for this chunk
      */
     private static AnalyzerResult analyzeChunk(String chunk) {
+        // Print first 50 chars of chunk for debugging
+        if (DEBUG) {
+            System.err.println("Analyzing chunk starting with: " + 
+                chunk.substring(0, Math.min(50, chunk.length())));
+        }
+        
         // Tokenization with punctuation removal
         String[] words = chunk.replaceAll("[\\.,;:!?\\(\\)\\[\\]{}'\"]", " ")
                              .toLowerCase()
                              .split("\\s+");
+        
+        if (DEBUG) {
+            System.err.println("Found " + words.length + " words after tokenization");
+        }
         
         double vaderScore = 0;
         double politicalScore = 0;
@@ -280,20 +317,32 @@ public class LexiconAnalyzer {
             
             // Check single words
             if (POLITICAL_LEXICON.containsKey(word)) {
-                politicalScore += POLITICAL_LEXICON.get(word);
+                double termScore = POLITICAL_LEXICON.get(word);
+                politicalScore += termScore;
                 politicalMatches++;
+                if (DEBUG) {
+                    System.err.println("Political match: " + word + " = " + termScore);
+                }
             }
             else if (VADER_LEXICON.containsKey(word)) {
-                vaderScore += VADER_LEXICON.get(word);
+                double termScore = VADER_LEXICON.get(word);
+                vaderScore += termScore;
                 vaderMatches++;
+                if (DEBUG) {
+                    System.err.println("Sentiment match: " + word + " = " + termScore);
+                }
             }
             
             // Check hyphenated words
             if (word.contains("-")) {
                 String unhyphenated = word.replace("-", " ");
                 if (POLITICAL_LEXICON.containsKey(unhyphenated)) {
-                    politicalScore += POLITICAL_LEXICON.get(unhyphenated);
+                    double termScore = POLITICAL_LEXICON.get(unhyphenated);
+                    politicalScore += termScore;
                     politicalMatches++;
+                    if (DEBUG) {
+                        System.err.println("Political hyphenated match: " + unhyphenated + " = " + termScore);
+                    }
                 }
             }
             
@@ -301,19 +350,26 @@ public class LexiconAnalyzer {
             if (i < words.length - 1) {
                 String bigram = word + " " + words[i+1];
                 if (POLITICAL_LEXICON.containsKey(bigram)) {
-                    politicalScore += POLITICAL_LEXICON.get(bigram);
+                    double termScore = POLITICAL_LEXICON.get(bigram);
+                    politicalScore += termScore;
                     politicalMatches++;
+                    if (DEBUG) {
+                        System.err.println("Political bigram match: " + bigram + " = " + termScore);
+                    }
                 }
             }
         }
         
-        // Calculate weighted score
-        return AnalyzerResult.createLexiconResult(politicalScore, vaderScore, politicalMatches, vaderMatches);
+        // Calculate weighted score using the improved method
+        double weightedScore = calculateWeightedScore(politicalScore, vaderScore, politicalMatches, vaderMatches);
+        
+        // Create result with additive approach
+        return createEnhancedResult(weightedScore, politicalScore, vaderScore, politicalMatches, vaderMatches);
     }
     
     /**
-     * Calculates a weighted score from political and sentiment scores.
-     * Political terms are weighted 3x more heavily than sentiment terms.
+     * Calculates a weighted score from political and sentiment scores with enhanced sentiment integration.
+     * Political terms are weighted 4x more heavily than sentiment terms for political bias relevance.
      * 
      * @param politicalScore Sum of political term scores
      * @param vaderScore Sum of sentiment term scores
@@ -323,32 +379,61 @@ public class LexiconAnalyzer {
      */
     private static double calculateWeightedScore(double politicalScore, double vaderScore, 
                                                int politicalMatches, int vaderMatches) {
-        if (politicalMatches > 0 || vaderMatches > 0) {
-            // Weight political terms 3x more than sentiment terms
-            return (politicalScore * 3 + vaderScore) / (politicalMatches * 3 + vaderMatches);
+        if (politicalMatches == 0 && vaderMatches == 0) {
+            return 0.0;  // No terms found
         }
-        return 0;
+        
+        // Normalize VADER scores - they range from -4 to +4 while political scores are typically -1 to +1
+        double normalizedVaderScore = vaderMatches > 0 ? vaderScore / vaderMatches * 0.2 : 0;
+        
+        // Political scores have higher priority (4x)
+        double normalizedPoliticalScore = politicalMatches > 0 ? politicalScore / politicalMatches : 0;
+        
+        if (politicalMatches > 0 && vaderMatches > 0) {
+            // Integrate both scores, with political having much higher weight
+            return (normalizedPoliticalScore * politicalMatches * 4 + normalizedVaderScore * vaderMatches) / 
+                   (politicalMatches * 4 + vaderMatches);
+        } else if (politicalMatches > 0) {
+            return normalizedPoliticalScore;
+        } else {
+            // Only VADER matches - use as weak signal
+            return normalizedVaderScore;
+        }
     }
     
     /**
-     * Creates an AnalyzerResult with appropriate percentages and message from the score.
+     * Creates an enhanced AnalyzerResult with appropriate percentages and detailed message.
+     * Uses a 50-point scale for converting scores to percentages to make bias more pronounced.
      * 
      * @param score The calculated bias score
+     * @param politicalScore Raw political score
+     * @param vaderScore Raw VADER score
      * @param politicalMatches Number of political terms matched
      * @param vaderMatches Number of sentiment terms matched
      * @return An AnalyzerResult representing the political bias analysis
      */
-    private static AnalyzerResult createResult(double score, int politicalMatches, int vaderMatches) {
-        // Convert to percentages
-        double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 25)));
+    private static AnalyzerResult createEnhancedResult(double score, double politicalScore, double vaderScore,
+                                                    int politicalMatches, int vaderMatches) {
+        // Use a 50-point scale instead of 25 for more pronounced bias differences
+        double leftPercentage = Math.max(0, Math.min(100, 50 - (score * 50)));
         double rightPercentage = 100 - leftPercentage;
         
-        String message = String.format(
-            "Analysis complete: Found %d political terms and %d sentiment terms. Overall bias score: %.2f",
-            politicalMatches,
-            vaderMatches,
-            score
-        );
+        String message;
+        if (politicalMatches == 0 && vaderMatches == 0) {
+            message = "No political or sentiment terms found. Consider expanding the lexicon.";
+            // When no terms found, default to neutral
+            leftPercentage = 50;
+            rightPercentage = 50;
+        } else {
+            // Create a more detailed message with both score components
+            message = String.format(
+                "Analysis complete: Found %d political terms (score: %.2f) and %d sentiment terms (score: %.2f). " + 
+                "Overall bias score: %.2f",
+                politicalMatches, politicalScore,
+                vaderMatches, vaderScore,
+                score
+            );
+        }
         
         return new AnalyzerResult(leftPercentage, rightPercentage, message);
     }
