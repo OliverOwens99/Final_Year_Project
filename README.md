@@ -77,6 +77,25 @@ pip install -r requirements.txt
 
 ### 4.Configure environment variables
 
+Create a .env file in the backend directory with:
+
 MONGODB_URI=mongodb://localhost:27017/biasanalyzer
 SECRET_KEY=your_secret_key
 HF_API_KEY=your_huggingface_api_key
+
+
+### 5. Setup jars
+
+#### Create the lib directory (from the backend directory)
+mkdir -p lib
+
+#### Download JAR files from Google Drive
+#### https://drive.google.com/drive/folders/1DyQ_pQqyh6O42njOs4xSTV2ZYJl4Locb?usp=sharing
+
+#### Move downloaded JARs to the lib folder
+#### On Windows:
+move C:\path\to\downloaded\sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib\
+
+#### On macOS/Linux:
+mv ~/Downloads/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib/
+

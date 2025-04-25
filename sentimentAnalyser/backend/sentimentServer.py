@@ -16,8 +16,13 @@ import os
 load_dotenv()
 # Define base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-JAR_PATH = os.path.join(BASE_DIR, "java-analysers", "target", 
+LIB_JAR_PATH = os.path.join(BASE_DIR, "lib", 
                       "sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar")
+TARGET_JAR_PATH = os.path.join(BASE_DIR, "java-analysers", "target", 
+                      "sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar")
+                      
+# Use the lib version if it exists, otherwise fall back to target
+JAR_PATH = LIB_JAR_PATH if os.path.exists(LIB_JAR_PATH) else TARGET_JAR_PATH
 #this was added to help scrub fox news and other anti scrapping sites 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 HEADERS = {'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml,application/xml'}
