@@ -63,3 +63,6 @@ target/
 .DS_Store
 Thumbs.db
 
+# Exception for prebuilt JARs
+!sentimentAnalyser/backend/lib/*.jar
+
