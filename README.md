@@ -99,3 +99,18 @@ move C:\path\to\downloaded\sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies
 #### On macOS/Linux:
 mv ~/Downloads/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib/
 
+
+
+### 7. Start the backend server
+
+```bash
+# From the backend directory
+# Activate the virtual environment
+# On Windows:
+venv\Scripts\activate
+
+# On macOS/Linux:
+source venv/bin/activate
+
+# Run the server
+python sentimentServer.py
