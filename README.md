@@ -85,9 +85,3 @@ npm run dev
   * Username: `olly`
   * Password: `demo`
 
-## Troubleshooting
-
-* **Missing JAR file:** Ensure the JAR is in lib
-* **ONNX model errors:** Verify the model is in `java-analysers/src/main/resources/`
-* **MongoDB connection:** Check that MongoDB is running and credentials are correct
-
