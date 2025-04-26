@@ -1,122 +1,140 @@
 ﻿# Political Bias Analysis System
 
-## Overview
+This project analyses political bias in news articles using three methods: lexicon-based analysis, transformer models, and a fine-tuned BERT model, providing visual and textual explanations of detected bias.
 
-This project is a web application that focuses on sentiment analysis using various forms of machine learning and AI to analyse and process any article and look for spin and/or bias in said article. The goal is to state and display on the webpage whether the content of the link provided is right-leaning or left-leaning on the political spectrum.
+## Screencast Demo
 
-The system offers three distinct methods for detecting political bias:
-
-1. **Lexicon-Based Analysis**: Uses a dictionary of political terms and sentiment analysis to identify bias through terminology
-2. **Transformer-Based Analysis**: Leverages large language models to analyze content context and framing
-3. **BERT-Based Analysis**: Employs a fine-tuned BERT model specifically trained for political bias detection
-
-## Features
-
-- **Multi-method bias detection**: Choose between lexicon, transformer, or BERT-based analysis
-- **Model selection**: Select from multiple transformer models (Gemma, Mistral, Llama, etc.)
-- **Visual results**: Pie charts showing left/right bias percentages
-- **Detailed explanations**: Textual descriptions of detected bias and reasoning
-- **History tracking**: Save and revisit previous analyses
-- **User authentication**: Secure access to personal analysis history
-
-## Technology Stack
-
-### Frontend
-- **React**: Component-based UI library
-- **Vite**: Fast build tool and development server
-- **Chart.js**: For visualization of bias percentages
-- **CSS**: Responsive design for multiple devices
-
-### Backend
-- **Flask**: Python web framework for API endpoints
-- **Newspaper3k**: Primary article content extraction
-- **BeautifulSoup**: Secondary content extraction
-- **MongoDB**: Storing user history and analysis results
-
-### Analysis Engines
-- **Java 21**: Core analysis implementation with virtual threads
-- **LangChain4j**: Integration with transformer models
-- **ONNX Runtime**: Efficient local model inference
-- **Hugging Face models**: Pre-trained language models
-
-## System Architecture
-
-The system follows a three-tier architecture:
-
-1. **Presentation Layer**: React frontend for user interaction and visualization
-2. **Application Layer**: Flask backend for coordination and text extraction
-3. **Analysis Layer**: Java-based engines implementing different bias detection approaches
-
-Communication between layers uses REST APIs and standardized JSON formats.
+**Watch the demo**: [https://youtu.be/Pr69VvWj92k](https://youtu.be/Pr69VvWj92k)
 
 ## Requirements
 
 - Node.js 18+
 - Python 3.10+
 - Java 21+
+- Maven 3.8+
 - MongoDB
-- Hugging Face API key (for transformer-based analysis)
+- Hugging Face API key
 
-## Installation and Setup
+## Setup Instructions
 
 ### 1. Clone the repository
+```bash
+git clone https://github.com/OliverOwens99/Final_Year_Project.git
+cd Final_Year_Project
+```
 
-git clone https://github.com/yourusername/Final_Year_Project-1.git
-cd Final_Year_Project-1
+### 2. Backend Setup
 
-### 2.Set up the frontend
+- install python dependencies 
 
-cd sentimentAnalyser/frontend
-npm install
-npm run dev
-
-### 3.Set up the backend
-
-cd ../backend
+```bash
+cd sentimentAnalyser/backend
 pip install -r requirements.txt
-
-### 4.Configure environment variables
-
-Create a .env file in the backend directory with:
-
+```
 MONGODB_URI=mongodb://localhost:27017/biasanalyzer
-SECRET_KEY=your_secret_key
+SECRET_KEY=your_secret_key_here
 HF_API_KEY=your_huggingface_api_key
 
 
-### 5. Setup jars
-
-#### Create the lib directory (from the backend directory)
+### 3. Build Java Analysers
+```bash
+cd java-analysers
+mvn clean package
+cd ..
 mkdir -p lib
+cp java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib/
+```
 
-#### Download JAR files from Google Drive
-#### https://drive.google.com/drive/folders/1DyQ_pQqyh6O42njOs4xSTV2ZYJl4Locb?usp=sharing
+```markdown
+# Political Bias Analysis System
 
-#### Move downloaded JARs to the lib folder
-#### On Windows:
-move C:\path\to\downloaded\sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib\
+This project analyzes political bias in news articles using three methods: lexicon-based analysis, transformer models, and a fine-tuned BERT model, providing visual and textual explanations of detected bias.
 
-#### On macOS/Linux:
-mv ~/Downloads/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib/
+## Screencast Demo
 
+**Watch the demo**: [https://youtu.be/Pr69VvWj92k](https://youtu.be/Pr69VvWj92k)
 
+## Requirements
 
-### 7. Start the backend server
+- Node.js 18+
+- Python 3.10+
+- Java 21+
+- Maven 3.8+
+- MongoDB
+- Hugging Face API key
 
+## Setup Instructions
 
-# From the backend directory
-# Activate the virtual environment
-# On Windows:
-venv\Scripts\activate
+### 1. Clone the repository
+```bash
+git clone https://github.com/OliverOwens99/Final_Year_Project.git
+cd Final_Year_Project
+```
 
-# On macOS/Linux:
-source venv/bin/activate
+### 2. Backend Setup
+* **Install Python dependencies:**
+  ```bash
+  cd sentimentAnalyser/backend
+  pip install -r requirements.txt
+  ```
 
-# Run the server
+* **Configure environment variables:**
+  * Create `.env` in backend with:
+  ```
+  MONGODB_URI=mongodb://localhost:27017/biasanalyzer
+  SECRET_KEY=your_secret_key_here
+  HF_API_KEY=your_huggingface_api_key
+  ```
+
+### 3. Build Java analyzers
+```bash
+cd java-analysers
+mvn clean package
+cd ..
+mkdir -p lib
+cp java-analysers/target/sentiment-analyzer-1.0-SNAPSHOT-jar-with-dependencies.jar lib/
+```
+
+### 4. Set up the ONNX model
+* **Option 1:** Download from [Google Drive](https://drive.google.com/drive/folders/1DyQ_pQqyh6O42njOs4xSTV2ZYJl4Locb?usp=sharing)
+  ```bash
+  mkdir -p java-analysers/src/main/resources
+  # On Windows:
+  move C:\path\to\downloads\political-bias-model.onnx java-analysers\src\main\resources\
+  # On macOS/Linux:
+  mv ~/Downloads/political-bias-model.onnx java-analysers/src/main/resources/
+  ```
+
+* **Option 2:** Generate it yourself
+  ```bash
+  python trainer.py
+  mkdir -p java-analysers/src/main/resources
+  cp political-bias-model.onnx java-analysers/src/main/resources/
+  ```
+
+### 5. Start the backend server
+```bash
 python sentimentServer.py
+```
 
+### 6. Set up and run the frontend
+```bash
+cd ../frontend
+# Create .env file for the API URL
+echo "VITE_API_URL=http://localhost:5000" > .env
+npm install
+npm run dev
+```
 
+### 7. Access the application
+* Open your browser to: `http://localhost:5173`
+* Register a new account or use test account:
+  * Username: `olly`
+  * Password: `demo`
 
-### Link to screenCast
+## Troubleshooting
 
-https://youtu.be/Pr69VvWj92k
+* **Missing JAR file:** Ensure the JAR is in lib
+* **ONNX model errors:** Verify the model is in `java-analysers/src/main/resources/`
+* **MongoDB connection:** Check that MongoDB is running and credentials are correct
+
